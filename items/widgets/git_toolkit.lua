@@ -1,35 +1,64 @@
--- Git Streak Toolkit - Fixed (anchor to real bracket name + small cleanups)
+-- Git Streak Toolkit - Fixed with proper popup pattern
 local colors = require("colors")
 local settings = require("settings")
 
 local TOOL_PREFIX = "widgets.git"
 local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/git_scan.sh"
-local MAX_GRAPH = tonumber(os.getenv("GIT_WIDGET_GRAPH_LINES") or "12")
+local MAX_GRAPH = tonumber(os.getenv("GIT_WIDGET_GRAPH_LINES") or "6")
 
--- CHIP
+-- DEBUG: Add logging function
+local function log(msg)
+	local logfile = os.getenv("HOME") .. "/.config/sketchybar/git_debug.log"
+	local f = io.open(logfile, "a")
+	if f then
+		f:write(os.date("[%Y-%m-%d %H:%M:%S] ") .. tostring(msg) .. "\n")
+		f:close()
+	end
+	print("[GIT DEBUG] " .. tostring(msg))
+end
+
+-- DEBUG: Check if script exists
+local function file_exists(path)
+	local f = io.open(path, "r")
+	if f then
+		f:close()
+		return true
+	end
+	return false
+end
+
+log("=== Git Widget Starting ===")
+log("Script path: " .. SCAN_SCRIPT)
+log("Script exists: " .. tostring(file_exists(SCAN_SCRIPT)))
+
+-- CHIP (main widget)
 local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	position = "right",
 	icon = { string = "󰊤 ", font = { size = 14 } },
 	label = { string = "Git", font = { style = settings.font.style_map["Bold"], size = 12 } },
-	padding_left = 8,
-	padding_right = 8,
+	padding_left = 6,
+	padding_right = 6,
 	update_freq = 180,
-	background = { color = colors.bg1, border_width = 1, border_color = colors.black, height = 26 },
 })
 
--- BRACKET (keep handle!)
-local br = sbar.add("bracket", TOOL_PREFIX .. ".br", { chip.name }, {
-	background = { color = colors.transparent, height = 28, border_width = 2, border_color = colors.bg2 },
-	popup = { align = "center" },
+-- BRACKET with popup - Fix: Set popup properties directly on bracket creation
+local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
+	background = { color = colors.bg1 },
+	popup = {
+		align = "center",
+		drawing = "off", -- Explicitly set initial state
+		horizontal = false,
+	},
 })
+
+log("Chip and bracket created")
 
 -- STATE
 local state = {
-	rows = {}, -- created item names to clean up
-	rows_index = {}, -- set of created names
-	repo_items = {}, -- key -> { row = item }
+	rows = {},
+	rows_index = {},
+	repo_items = {},
 	scan_in_flight = false,
-	popup_open = false,
 }
 
 -- UTILS
@@ -59,100 +88,67 @@ local function clear_rows()
 	state.rows, state.rows_index, state.repo_items = {}, {}, {}
 end
 
--- Open in iTerm / iTerm2 (try both)
+-- Open in iTerm
 local function open_in_terminal(path)
-	local osa = ([[if application "iTerm" is running or application "iTerm2" is running then
-  try
-    tell application "iTerm"
-      activate
-      if (count of windows) = 0 then create window with default profile
-      tell current window
-        create tab with default profile
-        tell current session to write text "cd %s && clear"
-      end tell
-    end tell
-  on error
-    tell application "iTerm2"
-      activate
-      if (count of windows) = 0 then create window with default profile
-      tell current window
-        create tab with default profile
-        tell current session to write text "cd %s && clear"
-      end tell
-    end tell
-  end try
-else
-  tell application "iTerm"
-    activate
-    if (count of windows) = 0 then create window with default profile
-    tell current window
-      create tab with default profile
-      tell current session to write text "cd %s && clear"
-    end tell
+	log("Opening terminal for path: " .. (path or "nil"))
+	local osa = ([[tell application "iTerm"
+  activate
+  if (count of windows) = 0 then create window with default profile
+  tell current window
+    create tab with default profile
+    tell current session to write text "cd %s && clear"
   end tell
-end if]]):format(path, path, path)
-	sbar.exec('/usr/bin/osascript -e "' .. escape_for_bash_double(osa) .. '"')
+end tell]]):format(escape_for_bash_double(path))
+
+	local cmd = '/usr/bin/osascript -e "' .. escape_for_bash_double(osa) .. '"'
+	log("Executing AppleScript command")
+	sbar.exec(cmd, function(out, exit_code)
+		log("AppleScript result - exit_code: " .. tostring(exit_code))
+	end)
 end
 
 -- DETAIL POPUP
 local function build_detail_popup(key, rec)
+	log("Building detail popup for: " .. key)
 	local detail_name = ("%s.detail.%s"):format(TOOL_PREFIX, key)
 	sbar.remove(detail_name)
 
 	local detail = sbar.add("item", detail_name, {
-		position = "popup." .. state.repo_items[key].row.name,
+		position = "popup." .. bracket.name, -- Use bracket.name consistently
 		icon = { drawing = false },
 		label = { string = "Loading…", align = "left", font = "SF Mono:Regular:11.0", max_chars = 999 },
 		width = 500,
 	})
 	track(detail_name)
 
-	local cmd = ([=[/bin/bash -lc '
-export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
-cd "%s" 2>/dev/null || { echo "(cannot cd)"; exit 0; }
-echo "%s  (%s)"
-echo "last commit: %s    dirty: %s    ahead/behind: %s/%s"
-echo "────────────────────────────────────────────────────────────"
-git --no-pager log --graph --decorate --oneline -n %d 2>/dev/null || echo "(no commits)"
-echo ""
-if command -v gh >/dev/null 2>&1 && [ "%s" != "-" ]; then
-  echo "PR status (%s):"
-  gh pr status -R "%s" 2>/dev/null | sed -e "s/\x1b\[[0-9;]*m//g"
-else
-  echo "(gh not found or remote not github)"
-fi
-' ]=]):format(
+	-- Simplified command for debugging
+	local cmd = ([=[cd "%s" 2>/dev/null && echo "Path: %s" && echo "Branch: %s" && git status --short]=]):format(
 		escape_for_bash_double(rec.path or ""),
-		escape_for_bash_double(rec.name or ""),
-		escape_for_bash_double(rec.branch or ""),
-		escape_for_bash_double(rec.last or "-"),
-		(rec.dirty == "1") and "yes" or "no",
-		escape_for_bash_double(rec.ahead or "0"),
-		escape_for_bash_double(rec.behind or "0"),
-		tonumber(MAX_GRAPH) or 12,
-		escape_for_bash_double(rec.slug or "-"),
-		escape_for_bash_double(rec.slug or "-"),
-		escape_for_bash_double(rec.slug or "-")
+		escape_for_bash_double(rec.path or ""),
+		escape_for_bash_double(rec.branch or "")
 	)
 
-	sbar.exec(cmd, function(out)
+	log("Detail command: " .. cmd)
+	sbar.exec(cmd, function(out, exit_code)
+		log("Detail result - exit_code: " .. tostring(exit_code))
 		detail:set({ label = { string = out or "(no details)" } })
 	end)
 end
 
--- ROWS
-local function create_repo_row(rec)
-	local key = rec.name
+-- Helper: add a popup row
+local function add_repo_row(key, rec)
 	local row_name = ("%s.row.%s"):format(TOOL_PREFIX, key)
 	if state.rows_index[row_name] then
-		return
+		return state.repo_items[key].row
 	end
 
+	log("Creating row for: " .. key)
+
 	local row = sbar.add("item", row_name, {
-		position = "popup." .. br.name, -- <— use the REAL bracket name
+		position = "popup." .. bracket.name,
 		icon = { string = rec.branch, align = "left", width = 140, color = colors.white },
-		label = { string = "—", align = "right", width = 340, font = { style = settings.font.style_map["Regular"] } },
-		width = 480,
+		label = { string = "—", align = "right", width = 320, font = { style = settings.font.style_map["Regular"] } },
+		width = 460,
 		padding_left = 6,
 		padding_right = 6,
 		background = { color = colors.bg1 },
@@ -160,6 +156,7 @@ local function create_repo_row(rec)
 	track(row_name)
 
 	row:subscribe("mouse.clicked", function(env)
+		log("Row clicked - Button: " .. tostring(env.BUTTON) .. ", Key: " .. key)
 		if env.BUTTON == "right" then
 			local dn = row_name .. ".detail"
 			local q = sbar.query(dn)
@@ -174,17 +171,8 @@ local function create_repo_row(rec)
 		end
 	end)
 
-	-- thin separator
-	local sep_name = row_name .. ".sep"
-	sbar.remove(sep_name)
-	sbar.add("item", sep_name, {
-		position = "popup." .. row.name,
-		background = { height = 1, color = colors.bg2 },
-		width = 480,
-	})
-	track(sep_name)
-
 	state.repo_items[key] = { row = row }
+	return row
 end
 
 local function update_repo_row(rec)
@@ -220,12 +208,7 @@ local function update_repo_row(rec)
 	})
 end
 
-local function ensure_repo_row(rec)
-	create_repo_row(rec)
-	update_repo_row(rec)
-end
-
--- SCAN
+-- SCAN FUNCTIONS
 local function parse(line)
 	local n, p, b, d, a, be, la, sl = line:match("^(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)$")
 	if not n or n == "" then
@@ -234,52 +217,46 @@ local function parse(line)
 	return { name = n, path = p, branch = b, dirty = d, ahead = a, behind = be, last = la, slug = sl }
 end
 
-local function count_dirty_or_diverged(tbl)
-	local c = 0
-	for _, r in ipairs(tbl) do
-		if r.dirty == "1" or (tonumber(r.ahead or "0") or 0) > 0 or (tonumber(r.behind or "0") or 0) > 0 then
-			c = c + 1
-		end
-	end
-	return c
-end
-
-local function rescan()
+local function refresh_popup()
 	if state.scan_in_flight then
+		log("Scan already in flight, skipping")
 		return
 	end
+
+	log("Starting popup refresh...")
 	state.scan_in_flight = true
-	chip:set({ label = { string = "…" } })
+
+	-- Test if script is executable first
+	if not file_exists(SCAN_SCRIPT) then
+		log("ERROR: Scan script does not exist!")
+		chip:set({ label = { string = "No Script" }, icon = { color = colors.red } })
+		state.scan_in_flight = false
+		return
+	end
 
 	local cmd = "/bin/bash -lc 'export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin; \""
 		.. escape_for_bash_double(SCAN_SCRIPT)
 		.. "\"'"
-	sbar.exec(cmd, function(out)
+
+	log("Executing command: " .. cmd)
+
+	sbar.exec(cmd, function(out, exit_code)
+		log("Scan completed - exit_code: " .. tostring(exit_code))
+		log("Scan output length: " .. tostring(out and #out or 0))
+
 		state.scan_in_flight = false
-
-		-- If popup closed: just update count
-		if not state.popup_open then
-			local cnt = 0
-			for _ in string.gmatch(out or "", "[^\r\n]+") do
-				cnt = cnt + 1
-			end
-			chip:set({ label = { string = (cnt > 0 and (cnt .. " repos") or "git") }, icon = { color = colors.white } })
-			return
-		end
-
 		clear_rows()
 
 		if not out or out == "" then
+			log("No output from scan script")
 			local empty = TOOL_PREFIX .. ".row.empty"
-			sbar.remove(empty)
 			sbar.add("item", empty, {
-				position = "popup." .. br.name,
+				position = "popup." .. bracket.name,
 				icon = { drawing = false },
 				label = { string = "No repos found", align = "center" },
-				width = 480,
+				width = 460,
 			})
 			track(empty)
-			chip:set({ label = { string = "git" }, icon = { color = colors.white } })
 			return
 		end
 
@@ -288,22 +265,22 @@ local function rescan()
 			local r = parse(line)
 			if r then
 				table.insert(records, r)
+				log("Parsed repo: " .. r.name)
 			end
 		end
 
-		chip:set({
-			label = { string = (#records > 0 and (#records .. " repos") or "git") },
-			icon = { color = (count_dirty_or_diverged(records) > 0) and colors.yellow or colors.white },
-		})
+		log("Total parsed records: " .. #records)
 
+		-- Create rows for each repo
 		for _, r in ipairs(records) do
-			ensure_repo_row(r)
+			add_repo_row(r.name, r)
+			update_repo_row(r)
 		end
 
+		-- Add separator at bottom
 		local pad = TOOL_PREFIX .. ".pad"
-		sbar.remove(pad)
 		sbar.add("item", pad, {
-			position = "popup." .. br.name,
+			position = "popup." .. bracket.name,
 			width = 1,
 			background = { color = colors.transparent, height = 6 },
 		})
@@ -311,38 +288,97 @@ local function rescan()
 	end)
 end
 
--- TOGGLE POPUP
-chip:subscribe("mouse.clicked", function()
-	sbar.set(br.name, { popup = { drawing = "toggle" } })
-	sbar.delay(0.05, function()
-		local q = sbar.query(br.name)
-		state.popup_open = (q and q.popup and q.popup.drawing == "on") or false
-		if state.popup_open then
-			-- fast feedback: show a small “Loading…” row immediately
-			local loader = TOOL_PREFIX .. ".row.loading"
-			sbar.remove(loader)
-			sbar.add("item", loader, {
-				position = "popup." .. br.name,
-				icon = { drawing = false },
-				label = { string = "Loading repositories…", align = "center" },
-				width = 480,
-			})
-			track(loader)
-			rescan()
-		else
-			clear_rows()
-			chip:set({ label = { string = "Git" }, icon = { color = colors.white } })
-		end
-	end)
-end)
-
--- PERIODIC (only count while closed)
-chip:subscribe({ "routine", "system_woke" }, function()
-	if state.popup_open then
+local function refresh_chip()
+	if state.scan_in_flight then
+		log("Scan already in flight, skipping chip refresh")
 		return
 	end
-	rescan()
+
+	log("Starting chip refresh...")
+	state.scan_in_flight = true
+
+	local cmd = "/bin/bash -lc 'export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin; \""
+		.. escape_for_bash_double(SCAN_SCRIPT)
+		.. "\"'"
+
+	sbar.exec(cmd, function(out, exit_code)
+		log("Chip scan completed - exit_code: " .. tostring(exit_code))
+		state.scan_in_flight = false
+
+		if not out or out == "" then
+			chip:set({ label = { string = "git" }, icon = { color = colors.white } })
+			return
+		end
+
+		local cnt = 0
+		local dirty_cnt = 0
+		for _, line in ipairs(split_lines(out)) do
+			local r = parse(line)
+			if r then
+				cnt = cnt + 1
+				if r.dirty == "1" or (tonumber(r.ahead or "0") or 0) > 0 or (tonumber(r.behind or "0") or 0) > 0 then
+					dirty_cnt = dirty_cnt + 1
+				end
+			end
+		end
+
+		log("Found " .. cnt .. " repos, " .. dirty_cnt .. " dirty/diverged")
+
+		chip:set({
+			label = { string = (cnt > 0 and (cnt .. " repos") or "git") },
+			icon = { color = (dirty_cnt > 0) and colors.yellow or colors.white },
+		})
+	end)
+end
+
+-- === Click behavior - FIXED ===
+chip:subscribe("mouse.clicked", function(env)
+	log("Chip clicked - Button: " .. tostring(env.BUTTON))
+	if env.BUTTON == "right" then
+		log("Right click - could add special action here")
+	else
+		log("Left click - toggling popup")
+
+		-- First check current state
+		local query_result = sbar.query(bracket.name)
+		log("Pre-toggle query result: " .. (query_result and "exists" or "nil"))
+
+		if query_result and query_result.popup then
+			log("Current popup drawing state: " .. tostring(query_result.popup.drawing))
+
+			-- Toggle popup state
+			if query_result.popup.drawing == "on" then
+				log("Closing popup")
+				sbar.set(bracket.name, { popup = { drawing = "off" } })
+				clear_rows()
+			else
+				log("Opening popup")
+				sbar.set(bracket.name, { popup = { drawing = "on" } })
+				-- Small delay to ensure popup is open before populating
+				sbar.delay(0.1, function()
+					refresh_popup()
+				end)
+			end
+		else
+			log("No popup found in query result - attempting to open")
+			sbar.set(bracket.name, { popup = { drawing = "on" } })
+			sbar.delay(0.1, function()
+				refresh_popup()
+			end)
+		end
+	end
+end)
+
+-- PERIODIC (only update chip when popup closed)
+chip:subscribe({ "routine", "system_woke" }, function()
+	log("Periodic update triggered")
+	refresh_chip()
 end)
 
 -- spacing after widget
 sbar.add("item", { position = "right", width = settings.group_paddings })
+
+log("=== Git Widget Setup Complete ===")
+
+-- Initial refresh
+refresh_chip()

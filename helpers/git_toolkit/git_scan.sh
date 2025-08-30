@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Config (override via env)
 PROJECTS_DIR="${PROJECTS_DIR:-$HOME/Neoware}"
-MAX_REPOS="${MAX_REPOS:-30}"    # hard cap
+MAX_REPOS="${MAX_REPOS:-10}"    # hard cap
 RECENT_DAYS="${RECENT_DAYS:-0}" # 0 = no time filter
 
 # Ignore noisy paths (gh-pages cache, node_modules, build outputs, vendored code, etc.)
