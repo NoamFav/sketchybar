@@ -4,7 +4,6 @@ local settings = require("settings")
 
 local TOOL_PREFIX = "widgets.git"
 local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/git_scan.sh"
-local MAX_GRAPH = tonumber(os.getenv("GIT_WIDGET_GRAPH_LINES") or "6")
 
 -- DEBUG: Add logging function
 local function log(msg)
@@ -102,7 +101,7 @@ end tell]]):format(escape_for_bash_double(path))
 
 	local cmd = '/usr/bin/osascript -e "' .. escape_for_bash_double(osa) .. '"'
 	log("Executing AppleScript command")
-	sbar.exec(cmd, function(out, exit_code)
+	sbar.exec(cmd, function(_, exit_code)
 		log("AppleScript result - exit_code: " .. tostring(exit_code))
 	end)
 end
