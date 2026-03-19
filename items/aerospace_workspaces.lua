@@ -11,6 +11,8 @@ local app_icons = require("helpers.app_icons")
 -- Register the custom event that AeroSpace will emit
 sbar.add("event", "aerospace_workspace_change")
 
+local minimal = os.getenv("SKETCHYBAR_MINIMAL") == "1"
+
 -- ============================================================================
 -- CONFIGURATION
 -- ============================================================================
@@ -18,11 +20,15 @@ sbar.add("event", "aerospace_workspace_change")
 -- Workspace layout configuration
 -- Display mapping: 3 = left monitor, 1 = middle monitor, 2 = right monitor
 -- Each workspace will only appear on its designated monitor's bar
-local WORKSPACE_LAYOUT = {
-	{ display = 3, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9" } }, -- left monitor
-	{ display = 1, workspaces = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" } }, -- middle monitor
-	{ display = 2, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } }, -- right monitor
-}
+local WORKSPACE_LAYOUT = minimal
+		and {
+			{ display = 1, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
+		}
+	or {
+		{ display = 3, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9" } },
+		{ display = 1, workspaces = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" } },
+		{ display = 2, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } },
+	}
 
 -- Visual styling constants
 local STYLE = {
