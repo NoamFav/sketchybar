@@ -7,6 +7,7 @@ if minimal then
 	require("items.calendar")
 	require("items.widgets.battery")
 	require("items.widgets.wifi")
+	require("items.widgets.git_toolkit")
 	require("items.widgets.music")
 else
 	require("items.apple")

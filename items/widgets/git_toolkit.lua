@@ -1,56 +1,29 @@
--- Git Streak Toolkit - Fixed with proper popup pattern
 local colors = require("colors")
 local settings = require("settings")
 
 local TOOL_PREFIX = "widgets.git"
-local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/git_scan.sh"
+local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/iskra_scan.sh"
+local SCAN_CMD = '/bin/bash -l "' .. SCAN_SCRIPT .. '"'
 
--- DEBUG: Add logging function
-local function log(msg)
-	local logfile = os.getenv("HOME") .. "/.config/sketchybar/git_debug.log"
-	local f = io.open(logfile, "a")
-	if f then
-		f:write(os.date("[%Y-%m-%d %H:%M:%S] ") .. tostring(msg) .. "\n")
-		f:close()
-	end
-	print("[GIT DEBUG] " .. tostring(msg))
-end
-
--- DEBUG: Check if script exists
-local function file_exists(path)
-	local f = io.open(path, "r")
-	if f then
-		f:close()
-		return true
-	end
-	return false
-end
-
-log("=== Git Widget Starting ===")
-log("Script path: " .. SCAN_SCRIPT)
-log("Script exists: " .. tostring(file_exists(SCAN_SCRIPT)))
-
--- CHIP (main widget)
+-- CHIP
 local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	position = "right",
 	icon = { string = "󰊤 ", font = { size = 14 } },
-	label = { string = "Git", font = { style = settings.font.style_map["Bold"], size = 12 } },
+	label = { string = "git", font = { style = settings.font.style_map["Bold"], size = 12 } },
 	padding_left = 6,
 	padding_right = 6,
 	update_freq = 180,
 })
 
--- BRACKET with popup - Fix: Set popup properties directly on bracket creation
+-- BRACKET with popup
 local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 	background = { color = colors.bg1 },
 	popup = {
 		align = "center",
-		drawing = "off", -- Explicitly set initial state
+		drawing = "off",
 		horizontal = false,
 	},
 })
-
-log("Chip and bracket created")
 
 -- STATE
 local state = {
@@ -58,6 +31,7 @@ local state = {
 	rows_index = {},
 	repo_items = {},
 	scan_in_flight = false,
+	records = nil, -- cached last scan results
 }
 
 -- UTILS
@@ -69,7 +43,7 @@ local function split_lines(s)
 	return t
 end
 
-local function escape_for_bash_double(s)
+local function escape_quotes(s)
 	return (s or ""):gsub('"', '\\"')
 end
 
@@ -87,9 +61,38 @@ local function clear_rows()
 	state.rows, state.rows_index, state.repo_items = {}, {}, {}
 end
 
--- Open in iTerm
+-- Parse pipe-delimited line: name|path|branch|staged|uncommitted|untracked|ahead|behind|slug
+local function parse(line)
+	local n, p, b, st, uc, ut, a, be, sl = line:match("^(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)")
+	if not n or n == "" then return nil end
+	return {
+		name = n, path = p, branch = b,
+		staged = tonumber(st) or 0,
+		uncommitted = tonumber(uc) or 0,
+		untracked = tonumber(ut) or 0,
+		ahead = tonumber(a) or 0,
+		behind = tonumber(be) or 0,
+		slug = sl,
+	}
+end
+
+local function status_string(r)
+	local bits = {}
+	if r.ahead > 0   then bits[#bits+1] = "↑" .. r.ahead end
+	if r.behind > 0  then bits[#bits+1] = "↓" .. r.behind end
+	if r.staged > 0  then bits[#bits+1] = "+" .. r.staged end
+	if r.uncommitted > 0 then bits[#bits+1] = "~" .. r.uncommitted end
+	if r.untracked > 0   then bits[#bits+1] = "?" .. r.untracked end
+	if #bits == 0 then return "clean" end
+	return table.concat(bits, "  ")
+end
+
+local function is_dirty(r)
+	return r.staged > 0 or r.uncommitted > 0 or r.untracked > 0 or r.ahead > 0 or r.behind > 0
+end
+
+-- Open repo in iTerm
 local function open_in_terminal(path)
-	log("Opening terminal for path: " .. (path or "nil"))
 	local osa = ([[tell application "iTerm"
   activate
   if (count of windows) = 0 then create window with default profile
@@ -97,157 +100,98 @@ local function open_in_terminal(path)
     create tab with default profile
     tell current session to write text "cd %s && clear"
   end tell
-end tell]]):format(escape_for_bash_double(path))
-
-	local cmd = '/usr/bin/osascript -e "' .. escape_for_bash_double(osa) .. '"'
-	log("Executing AppleScript command")
-	sbar.exec(cmd, function(_, exit_code)
-		log("AppleScript result - exit_code: " .. tostring(exit_code))
-	end)
+end tell]]):format(escape_quotes(path))
+	sbar.exec('/usr/bin/osascript -e "' .. escape_quotes(osa) .. '"')
 end
 
--- DETAIL POPUP
-local function build_detail_popup(key, rec)
-	log("Building detail popup for: " .. key)
-	local detail_name = ("%s.detail.%s"):format(TOOL_PREFIX, key)
-	sbar.remove(detail_name)
-
-	local detail = sbar.add("item", detail_name, {
-		position = "popup." .. bracket.name, -- Use bracket.name consistently
-		icon = { drawing = false },
-		label = { string = "Loading…", align = "left", font = "SF Mono:Regular:11.0", max_chars = 999 },
-		width = 500,
-	})
-	track(detail_name)
-
-	-- Simplified command for debugging
-	local cmd = ([=[cd "%s" 2>/dev/null && echo "Path: %s" && echo "Branch: %s" && git status --short]=]):format(
-		escape_for_bash_double(rec.path or ""),
-		escape_for_bash_double(rec.path or ""),
-		escape_for_bash_double(rec.branch or "")
-	)
-
-	log("Detail command: " .. cmd)
-	sbar.exec(cmd, function(out, exit_code)
-		log("Detail result - exit_code: " .. tostring(exit_code))
-		detail:set({ label = { string = out or "(no details)" } })
-	end)
-end
-
--- Helper: add a popup row
-local function add_repo_row(key, rec)
+-- POPUP ROW
+local function add_repo_row(r)
+	local key = r.name
 	local row_name = ("%s.row.%s"):format(TOOL_PREFIX, key)
 	if state.rows_index[row_name] then
-		return state.repo_items[key].row
+		return state.repo_items[key]
 	end
 
-	log("Creating row for: " .. key)
-
+	local dirty = is_dirty(r)
 	local row = sbar.add("item", row_name, {
 		position = "popup." .. bracket.name,
-		icon = { string = rec.branch, align = "left", width = 140, color = colors.white },
-		label = { string = "—", align = "right", width = 320, font = { style = settings.font.style_map["Regular"] } },
+		icon = {
+			string = r.branch,
+			align = "left",
+			width = 120,
+			color = dirty and colors.orange or colors.grey,
+			font = { family = settings.font.numbers, style = settings.font.style_map["Regular"], size = 11 },
+		},
+		label = {
+			string = r.name .. "   " .. status_string(r),
+			align = "left",
+			width = 340,
+			color = (r.ahead > 0 or r.behind > 0) and colors.yellow
+				or dirty and colors.orange
+				or colors.grey,
+			font = { style = settings.font.style_map["Regular"], size = 12 },
+		},
 		width = 460,
-		padding_left = 6,
-		padding_right = 6,
+		padding_left = 8,
+		padding_right = 8,
 		background = { color = colors.bg1 },
 	})
 	track(row_name)
 
 	row:subscribe("mouse.clicked", function(env)
-		log("Row clicked - Button: " .. tostring(env.BUTTON) .. ", Key: " .. key)
-		if env.BUTTON == "right" then
-			local dn = row_name .. ".detail"
-			local q = sbar.query(dn)
-			if q and q.drawing == "on" then
-				sbar.set(dn, { drawing = "off" })
-			else
-				sbar.remove(dn)
-				build_detail_popup(key, rec)
-			end
-		else
-			open_in_terminal(rec.path)
+		if env.BUTTON == "left" then
+			open_in_terminal(r.path)
 		end
 	end)
 
-	state.repo_items[key] = { row = row }
+	state.repo_items[key] = row
 	return row
 end
 
-local function update_repo_row(rec)
-	local key = rec.name
-	local row = state.repo_items[key] and state.repo_items[key].row
-	if not row then
-		return
-	end
-
-	local dirty = rec.dirty == "1"
-	local ahead = tonumber(rec.ahead or "0") or 0
-	local behind = tonumber(rec.behind or "0") or 0
-
-	local bits = {}
-	if dirty then
-		table.insert(bits, "● dirty")
-	end
-	if ahead > 0 then
-		table.insert(bits, "↑" .. ahead)
-	end
-	if behind > 0 then
-		table.insert(bits, "↓" .. behind)
-	end
-	table.insert(bits, rec.last)
-	local status = table.concat(bits, "  ·  ")
-
-	row:set({
-		icon = { string = rec.branch, color = dirty and colors.orange or colors.white },
-		label = {
-			string = rec.name .. "  —  " .. status,
-			color = (ahead > 0 or behind > 0) and colors.yellow or (dirty and colors.orange or colors.grey),
-		},
-	})
-end
-
--- SCAN FUNCTIONS
-local function parse(line)
-	local n, p, b, d, a, be, la, sl = line:match("^(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)|(.-)$")
-	if not n or n == "" then
-		return nil
-	end
-	return { name = n, path = p, branch = b, dirty = d, ahead = a, behind = be, last = la, slug = sl }
-end
-
-local function refresh_popup()
-	if state.scan_in_flight then
-		log("Scan already in flight, skipping")
-		return
-	end
-
-	log("Starting popup refresh...")
+-- SCAN
+local function do_scan(on_done)
+	if state.scan_in_flight then return end
 	state.scan_in_flight = true
 
-	-- Test if script is executable first
-	if not file_exists(SCAN_SCRIPT) then
-		log("ERROR: Scan script does not exist!")
-		chip:set({ label = { string = "No Script" }, icon = { color = colors.red } })
+	sbar.exec(SCAN_CMD, function(out, exit_code)
 		state.scan_in_flight = false
-		return
-	end
 
-	local cmd = "/bin/bash -lc 'export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin; \""
-		.. escape_for_bash_double(SCAN_SCRIPT)
-		.. "\"'"
+		local records = {}
+		if out and out ~= "" and exit_code == 0 then
+			for _, line in ipairs(split_lines(out)) do
+				local r = parse(line)
+				if r then records[#records+1] = r end
+			end
+		end
+		state.records = records
+		on_done(records)
+	end)
+end
 
-	log("Executing command: " .. cmd)
+-- UPDATE CHIP
+local function refresh_chip()
+	do_scan(function(records)
+		local total = #records
+		local dirty_cnt = 0
+		for _, r in ipairs(records) do
+			if is_dirty(r) then dirty_cnt = dirty_cnt + 1 end
+		end
 
-	sbar.exec(cmd, function(out, exit_code)
-		log("Scan completed - exit_code: " .. tostring(exit_code))
-		log("Scan output length: " .. tostring(out and #out or 0))
+		chip:set({
+			label = {
+				string = dirty_cnt > 0 and (dirty_cnt .. "/" .. total) or (total .. " repos"),
+			},
+			icon = { color = dirty_cnt > 0 and colors.yellow or colors.white },
+		})
+	end)
+end
 
-		state.scan_in_flight = false
+-- BUILD POPUP
+local function refresh_popup()
+	do_scan(function(records)
 		clear_rows()
 
-		if not out or out == "" then
-			log("No output from scan script")
+		if #records == 0 then
 			local empty = TOOL_PREFIX .. ".row.empty"
 			sbar.add("item", empty, {
 				position = "popup." .. bracket.name,
@@ -259,24 +203,15 @@ local function refresh_popup()
 			return
 		end
 
-		local records = {}
-		for _, line in ipairs(split_lines(out)) do
-			local r = parse(line)
-			if r then
-				table.insert(records, r)
-				log("Parsed repo: " .. r.name)
-			end
-		end
+		-- Sort: dirty repos first
+		table.sort(records, function(a, b)
+			return (is_dirty(a) and 1 or 0) > (is_dirty(b) and 1 or 0)
+		end)
 
-		log("Total parsed records: " .. #records)
-
-		-- Create rows for each repo
 		for _, r in ipairs(records) do
-			add_repo_row(r.name, r)
-			update_repo_row(r)
+			add_repo_row(r)
 		end
 
-		-- Add separator at bottom
 		local pad = TOOL_PREFIX .. ".pad"
 		sbar.add("item", pad, {
 			position = "popup." .. bracket.name,
@@ -287,97 +222,25 @@ local function refresh_popup()
 	end)
 end
 
-local function refresh_chip()
-	if state.scan_in_flight then
-		log("Scan already in flight, skipping chip refresh")
-		return
-	end
-
-	log("Starting chip refresh...")
-	state.scan_in_flight = true
-
-	local cmd = "/bin/bash -lc 'export PATH=/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin; \""
-		.. escape_for_bash_double(SCAN_SCRIPT)
-		.. "\"'"
-
-	sbar.exec(cmd, function(out, exit_code)
-		log("Chip scan completed - exit_code: " .. tostring(exit_code))
-		state.scan_in_flight = false
-
-		if not out or out == "" then
-			chip:set({ label = { string = "git" }, icon = { color = colors.white } })
-			return
-		end
-
-		local cnt = 0
-		local dirty_cnt = 0
-		for _, line in ipairs(split_lines(out)) do
-			local r = parse(line)
-			if r then
-				cnt = cnt + 1
-				if r.dirty == "1" or (tonumber(r.ahead or "0") or 0) > 0 or (tonumber(r.behind or "0") or 0) > 0 then
-					dirty_cnt = dirty_cnt + 1
-				end
-			end
-		end
-
-		log("Found " .. cnt .. " repos, " .. dirty_cnt .. " dirty/diverged")
-
-		chip:set({
-			label = { string = (cnt > 0 and (cnt .. " repos") or "git") },
-			icon = { color = (dirty_cnt > 0) and colors.yellow or colors.white },
-		})
-	end)
-end
-
--- === Click behavior - FIXED ===
+-- CLICK
 chip:subscribe("mouse.clicked", function(env)
-	log("Chip clicked - Button: " .. tostring(env.BUTTON))
-	if env.BUTTON == "right" then
-		log("Right click - could add special action here")
+	if env.BUTTON ~= "left" then return end
+
+	local q = sbar.query(bracket.name)
+	if q and q.popup and q.popup.drawing == "on" then
+		sbar.set(bracket.name, { popup = { drawing = "off" } })
+		clear_rows()
 	else
-		log("Left click - toggling popup")
-
-		-- First check current state
-		local query_result = sbar.query(bracket.name)
-		log("Pre-toggle query result: " .. (query_result and "exists" or "nil"))
-
-		if query_result and query_result.popup then
-			log("Current popup drawing state: " .. tostring(query_result.popup.drawing))
-
-			-- Toggle popup state
-			if query_result.popup.drawing == "on" then
-				log("Closing popup")
-				sbar.set(bracket.name, { popup = { drawing = "off" } })
-				clear_rows()
-			else
-				log("Opening popup")
-				sbar.set(bracket.name, { popup = { drawing = "on" } })
-				-- Small delay to ensure popup is open before populating
-				sbar.delay(0.1, function()
-					refresh_popup()
-				end)
-			end
-		else
-			log("No popup found in query result - attempting to open")
-			sbar.set(bracket.name, { popup = { drawing = "on" } })
-			sbar.delay(0.1, function()
-				refresh_popup()
-			end)
-		end
+		sbar.set(bracket.name, { popup = { drawing = "on" } })
+		sbar.delay(0.1, refresh_popup)
 	end
 end)
 
--- PERIODIC (only update chip when popup closed)
-chip:subscribe({ "routine", "system_woke" }, function()
-	log("Periodic update triggered")
-	refresh_chip()
-end)
+-- PERIODIC
+chip:subscribe({ "routine", "system_woke" }, refresh_chip)
 
--- spacing after widget
+-- Spacing
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
-log("=== Git Widget Setup Complete ===")
-
--- Initial refresh
+-- Initial
 refresh_chip()
