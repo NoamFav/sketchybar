@@ -25,9 +25,9 @@ local WORKSPACE_LAYOUT = minimal
 			{ display = 1, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" } },
 		}
 	or {
-		{ display = 3, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" } },
+		{ display = 2, workspaces = { "1", "2", "3", "4", "5", "6", "7", "8", "9", "0" } },
 		{ display = 1, workspaces = { "Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P" } },
-		{ display = 2, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } },
+		{ display = 3, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } },
 	}
 
 -- Visual styling constants
