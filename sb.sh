@@ -36,6 +36,7 @@ sb() {
     _reload_soft() {
         "$BIN" --reload >/dev/null 2>&1 || return 1
     }
+    local THEME_DIR="${SB_THEME_DIR:-$HOME/.config/sketchybar/theme}"
     local cmd="${1:-toggle}"
     case "$cmd" in
     toggle) if _running; then
@@ -101,8 +102,20 @@ sb() {
     else
         echo "sb: stopped"
     fi ;;
+    sync-theme)
+        bash "$THEME_DIR/generate.sh" "${@:2}" && {
+            if _running; then
+                _reload_soft && echo "sb: theme applied" || sb restart
+            else
+                echo "sb: theme generated (sketchybar not running)"
+            fi
+        }
+        ;;
+    theme-watch)
+        bash "$THEME_DIR/watch.sh" "${2:-status}"
+        ;;
     *)
-        echo "sb: usage: sb [toggle|start|stop|restart|reload|status]"
+        echo "sb: usage: sb [toggle|start|stop|restart|reload|status|sync-theme|theme-watch start|stop|status]"
         return 1
         ;;
     esac

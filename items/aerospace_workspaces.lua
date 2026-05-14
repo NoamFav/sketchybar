@@ -30,17 +30,28 @@ local WORKSPACE_LAYOUT = minimal
 		{ display = 3, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } },
 	}
 
--- Visual styling constants
-local STYLE = {
-	chip_bg = colors.bg1, -- Background color for workspace chips
-	chip_border = colors.black, -- Border color for workspace chips
-	chip_height = 26, -- Height of workspace chips
-	bracket_border = colors.bg2, -- Border color for workspace brackets
-	active_icon_highlight = colors.red, -- Highlight color for active workspace icon
-	active_label_highlight = colors.white, -- Highlight color for active workspace label
-	inactive_icon_color = colors.white, -- Color for inactive workspace icons
-	inactive_label_color = colors.grey, -- Color for inactive workspace labels
-}
+-- Per-display styling (uses wallpaper-derived accent/bg if colors_generated.lua exists)
+local function make_style(display_num)
+	local dc = colors.display and colors.display[display_num]
+	return {
+		chip_bg = (dc and dc.bg1) or colors.bg1,
+		chip_border = colors.black,
+		chip_height = 26,
+		bracket_border = (dc and dc.bg2) or colors.bg2,
+		active_icon_highlight = (dc and dc.accent) or colors.blue,
+		active_label_highlight = colors.white,
+		inactive_icon_color = colors.white,
+		inactive_label_color = colors.grey,
+	}
+end
+
+local DISPLAY_STYLES = {}
+for _, group in ipairs(WORKSPACE_LAYOUT) do
+	if not DISPLAY_STYLES[group.display] then
+		DISPLAY_STYLES[group.display] = make_style(group.display)
+	end
+end
+local STYLE = DISPLAY_STYLES[1] or make_style(1)
 
 -- ============================================================================
 -- STATE MANAGEMENT
@@ -65,7 +76,8 @@ end
 -- ============================================================================
 
 -- Creates a workspace item (the clickable chip that shows the workspace)
-local function create_workspace_item(ws)
+local function create_workspace_item(ws, style)
+	style = style or STYLE
 	local display = workspace_to_display[ws] or "active"
 
 	local item = sbar.add("item", "aws." .. ws, {
@@ -137,11 +149,12 @@ local function ensure_workspace_exists(ws)
 	end
 
 	local display = workspace_to_display[ws] or "active"
-	local item, bracket = create_workspace_item(ws)
+	local style = DISPLAY_STYLES[display] or STYLE
+	local item, bracket = create_workspace_item(ws, style)
 	local pad = create_padding_item(ws, display)
 
 	-- Store references to all created items
-	workspace_items[ws] = { item = item, bracket = bracket, display = display }
+	workspace_items[ws] = { item = item, bracket = bracket, display = display, style = style }
 	padding_items[ws] = pad.name
 
 	return workspace_items[ws]
@@ -186,6 +199,7 @@ local function update_workspace_appearance(ws, focused_workspace)
 	end
 
 	local is_focused = (ws == focused_workspace)
+	local style = workspace.style or STYLE
 
 	-- Get list of applications running in this workspace
 	sbar.exec(string.format('aerospace list-windows --workspace %s --format "%%{app-name}"', ws), function(output)
@@ -214,14 +228,14 @@ local function update_workspace_appearance(ws, focused_workspace)
 			icon = { highlight = is_focused },
 			label = { string = app_icons_string, highlight = is_focused },
 			background = {
-				border_color = is_focused and STYLE.chip_border or STYLE.bracket_border,
+				border_color = is_focused and style.chip_border or style.bracket_border,
 			},
 		})
 
 		-- Update bracket styling with focus indication
 		workspace.bracket:set({
 			background = {
-				border_color = is_focused and colors.grey or STYLE.bracket_border,
+				border_color = is_focused and colors.grey or style.bracket_border,
 			},
 		})
 	end)
