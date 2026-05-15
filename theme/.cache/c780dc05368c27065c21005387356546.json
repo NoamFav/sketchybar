@@ -1,0 +1,18 @@
+{
+  "black": "0xff000000",
+  "white": "0xffe0d2d2",
+  "grey": "0xff746d6d",
+  "red": "0xff844636",
+  "green": "0xff189918",
+  "blue": "0xff16598d",
+  "yellow": "0xff998e18",
+  "orange": "0xff854539",
+  "magenta": "0xff634d58",
+  "bg1": "0xff000000",
+  "bg2": "0xff000000",
+  "bar_bg": "0x00000000",
+  "bar_border": "0xff000000",
+  "popup_bg": "0xc0000000",
+  "popup_border": "0xff746d6d",
+  "accent": "0xff854539"
+}

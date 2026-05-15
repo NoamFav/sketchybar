@@ -9,10 +9,12 @@ SKETCHYBAR="${SB_BIN:-/opt/homebrew/bin/sketchybar}"
 PID_FILE="$SCRIPT_DIR/.watch.pid"
 LOG_FILE="$SCRIPT_DIR/.watch.log"
 
-BACKDROP_PLIST="$HOME/Library/Preferences/com.cindori.Backdrop.plist"
+# macOS writes this on every wallpaper switch (Backdrop plist flushes lazily)
+WALLPAPER_INDEX="$HOME/Library/Application Support/com.apple.wallpaper/Store/Index.plist"
 FSWATCH="${FSWATCH:-/opt/homebrew/bin/fswatch}"
 
 _on_change() {
+    sleep 1  # let Backdrop flush its prefs before we read the UUID
     echo "$(date '+%Y-%m-%d %H:%M:%S') wallpaper changed — regenerating theme" >> "$LOG_FILE"
     if bash "$GENERATE" >> "$LOG_FILE" 2>&1; then
         "$SKETCHYBAR" --reload >> "$LOG_FILE" 2>&1 || true
@@ -26,7 +28,7 @@ _watch_loop() {
     # fswatch fires on any write to the Backdrop plist (happens when wallpaper changes)
     # -o collapses rapid successive events into one; -1 exits after first event (loop handles restart)
     while true; do
-        "$FSWATCH" -o --event Updated --event Created "$BACKDROP_PLIST" 2>/dev/null | while read -r _; do
+        "$FSWATCH" -o --event Updated --event Created "$WALLPAPER_INDEX" 2>/dev/null | while read -r _; do
             _on_change
         done
         sleep 1  # brief pause before re-watching in case fswatch exits unexpectedly
@@ -43,15 +45,15 @@ start)
         echo "theme-watch: fswatch not found at $FSWATCH — install with: brew install fswatch"
         exit 1
     fi
-    if [[ ! -f "$BACKDROP_PLIST" ]]; then
-        echo "theme-watch: Backdrop not found ($BACKDROP_PLIST missing)"
+    if [[ ! -f "$WALLPAPER_INDEX" ]]; then
+        echo "theme-watch: wallpaper index not found ($WALLPAPER_INDEX missing)"
         exit 1
     fi
     _watch_loop &
     BGPID=$!
     echo "$BGPID" > "$PID_FILE"
     disown "$BGPID"
-    echo "theme-watch: started (pid $BGPID, watching Backdrop)"
+    echo "theme-watch: started (pid $BGPID, watching wallpaper index)"
     ;;
 
 stop)
@@ -74,7 +76,7 @@ stop)
 
 status)
     if [[ -f "$PID_FILE" ]] && kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-        echo "theme-watch: running (pid $(cat "$PID_FILE"), watching Backdrop)"
+        echo "theme-watch: running (pid $(cat "$PID_FILE"), watching wallpaper index)"
     else
         echo "theme-watch: stopped"
     fi

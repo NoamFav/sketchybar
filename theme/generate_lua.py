@@ -36,7 +36,7 @@ def main(p1_path, p2_path, p3_path, out_path):
     gp = palettes[0]
 
     def disp(p):
-        return {k: g(p, k) for k in ("accent", "bar_bg", "bg1", "bg2")}
+        return {k: g(p, k) for k in ("accent", "bg1", "bg2")}
 
     d = [disp(p) for p in palettes]
     ts = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -71,9 +71,9 @@ def main(p1_path, p2_path, p3_path, out_path):
         f"  bg2 = {g(gp, 'bg2')},\n\n"
         f"  -- Per-display accent/bg tones (from each monitor's wallpaper)\n"
         f"  display = {{\n"
-        f"    [1] = {{ accent = {d[0]['accent']}, bar_bg = {d[0]['bar_bg']}, bg1 = {d[0]['bg1']}, bg2 = {d[0]['bg2']} }},\n"
-        f"    [2] = {{ accent = {d[1]['accent']}, bar_bg = {d[1]['bar_bg']}, bg1 = {d[1]['bg1']}, bg2 = {d[1]['bg2']} }},\n"
-        f"    [3] = {{ accent = {d[2]['accent']}, bar_bg = {d[2]['bar_bg']}, bg1 = {d[2]['bg1']}, bg2 = {d[2]['bg2']} }},\n"
+        f"    [1] = {{ accent = {d[0]['accent']}, bg1 = {d[0]['bg1']}, bg2 = {d[0]['bg2']} }},\n"
+        f"    [2] = {{ accent = {d[1]['accent']}, bg1 = {d[1]['bg1']}, bg2 = {d[1]['bg2']} }},\n"
+        f"    [3] = {{ accent = {d[2]['accent']}, bg1 = {d[2]['bg1']}, bg2 = {d[2]['bg2']} }},\n"
         f"  }},\n\n"
         f"  with_alpha = with_alpha,\n"
         f"}}\n"

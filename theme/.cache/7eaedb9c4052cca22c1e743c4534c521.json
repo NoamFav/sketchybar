@@ -1,0 +1,18 @@
+{
+  "black": "0xff0b0a09",
+  "white": "0xffe0d9d2",
+  "grey": "0xff74706d",
+  "red": "0xffb23e3e",
+  "green": "0xff3eb23e",
+  "blue": "0xff3e65b2",
+  "yellow": "0xffb2a83e",
+  "orange": "0xffb26e3e",
+  "magenta": "0xffa83eb2",
+  "bg1": "0xff201f20",
+  "bg2": "0xff41403e",
+  "bar_bg": "0x000b0a09",
+  "bar_border": "0xff41403e",
+  "popup_bg": "0xc0201f20",
+  "popup_border": "0xff74706d",
+  "accent": "0xff3e65b2"
+}
