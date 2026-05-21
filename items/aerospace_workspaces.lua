@@ -110,16 +110,16 @@ local function create_workspace_item(ws, style)
 		drawing = "off", -- Initially hidden
 	})
 
-	-- Create a bracket around the workspace item for visual grouping
+	-- Bracket kept for drawing/visibility management; visually transparent
 	local bracket = sbar.add("bracket", { item.name }, {
-		display = display, -- Bracket appears on same monitor as the item
+		display = display,
 		background = {
 			color = colors.transparent,
-			border_color = STYLE.bracket_border,
+			border_color = colors.transparent,
 			height = STYLE.chip_height + 2,
-			border_width = 2,
+			border_width = 0,
 		},
-		drawing = "off", -- Initially hidden
+		drawing = "off",
 	})
 
 	-- Handle right-click to move focused window to this workspace
@@ -228,15 +228,14 @@ local function update_workspace_appearance(ws, focused_workspace)
 			icon = { highlight = is_focused },
 			label = { string = app_icons_string, highlight = is_focused },
 			background = {
-				border_color = is_focused and style.chip_border or style.bracket_border,
+				color = is_focused and colors.with_alpha(style.active_icon_highlight, 0.18) or style.chip_bg,
+				border_color = is_focused and style.active_icon_highlight or style.bracket_border,
 			},
 		})
 
-		-- Update bracket styling with focus indication
+		-- Keep bracket invisible — chip carries all the visual weight
 		workspace.bracket:set({
-			background = {
-				border_color = is_focused and colors.grey or style.bracket_border,
-			},
+			background = { border_color = colors.transparent },
 		})
 	end)
 end

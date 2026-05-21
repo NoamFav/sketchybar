@@ -11,7 +11,9 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")"
 EXTRACT_PY="$SCRIPT_DIR/extract_colors.py"
 GENERATE_PY="$SCRIPT_DIR/generate_lua.py"
+GENERATE_ITERM_PY="$SCRIPT_DIR/generate_iterm.py"
 OUTPUT="$CONFIG_DIR/colors_generated.lua"
+ITERM_OUTPUT="$HOME/Library/Application Support/iTerm2/DynamicProfiles/wallpaper.json"
 CACHE_DIR="$SCRIPT_DIR/.cache"
 PYTHON="${PYTHON:-python3}"
 
@@ -135,3 +137,7 @@ extract_with_cache "$WP3" > "$CACHE_DIR/current_d3.json"
     "$CACHE_DIR/current_d2.json" \
     "$CACHE_DIR/current_d3.json" \
     "$OUTPUT"
+
+"$PYTHON" "$GENERATE_ITERM_PY" \
+    "$CACHE_DIR/current_d1.json" \
+    "$ITERM_OUTPUT"
