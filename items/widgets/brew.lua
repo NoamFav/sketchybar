@@ -9,18 +9,18 @@ local SCAN_CMD = '/bin/bash -l "' .. SCAN_SCRIPT .. '"'
 -- macOS doesn't fall back to an installed Nerd Font for them automatically,
 -- so the family has to be set explicitly.
 local NERD_FONT = "VictorMono NFM"
-local ICON_BEER = ""
-local ICON_BOX = ""
-local ICON_UPGRADE = ""
-local ICON_CLEANUP = ""
-local ICON_DOCTOR = ""
+local ICON_BEER = " "
+local ICON_BOX = " "
+local ICON_UPGRADE = " "
+local ICON_CLEANUP = " "
+local ICON_DOCTOR = " "
 
 local PAGE_SIZE = 10
 
 -- CHIP
 local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	position = "right",
-	icon = { string = ICON_BEER, font = { family = NERD_FONT, size = 14 } },
+	icon = { string = ICON_BEER, font = { family = NERD_FONT, size = 16 } },
 	label = { string = "…", font = { style = settings.font.style_map["Bold"], size = 12 } },
 	padding_left = 6,
 	padding_right = 6,
@@ -39,12 +39,9 @@ local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 
 -- STATE
 local state = {
-	rows = {}, -- header / action buttons / separator (torn down on every full refresh)
+	rows = {}, -- header / action buttons / separator / entries (torn down on every full refresh)
 	rows_index = {},
-	entry_rows = {}, -- paginated package rows + footer (torn down on scroll too)
 	scan_in_flight = false,
-	cached_entries = {},
-	scroll_offset = 0,
 }
 
 -- UTILS
@@ -70,13 +67,6 @@ local function clear_rows()
 	state.rows, state.rows_index = {}, {}
 end
 
-local function clear_entry_rows()
-	for _, name in ipairs(state.entry_rows) do
-		sbar.remove(name)
-	end
-	state.entry_rows = {}
-end
-
 -- Parse a single scan line into a record
 local function parse(line)
 	if line:sub(1, 8) == "SUMMARY|" then
@@ -97,17 +87,12 @@ local function parse(line)
 	return { kind = kind, name = name, installed = installed, current = current }
 end
 
--- Run a brew command in a new iTerm tab
+-- Run a brew command in a new Ghostty window; it closes itself on exit
+-- (wait-after-command defaults to false, so no extra teardown needed).
+-- Ghostty's -e wants the command and args as separate argv entries, so
+-- this must NOT be quoted as a single string.
 local function run_in_terminal(cmd)
-	local osa = [[tell application "iTerm"
-  activate
-  if (count of windows) = 0 then create window with default profile
-  tell current window
-    create tab with default profile
-    tell current session to write text "]] .. cmd .. [["
-  end tell
-end tell]]
-	sbar.exec('/usr/bin/osascript -e "' .. osa:gsub('"', '\\"') .. '"')
+	sbar.exec("open -na /Applications/Ghostty.app --args -e " .. cmd)
 end
 
 -- SCAN
@@ -152,13 +137,11 @@ local function refresh_chip()
 	end)
 end
 
--- Render the current page of state.cached_entries (scroll-only refresh, header/buttons untouched)
-local on_scroll
-local function render_entry_page()
-	clear_entry_rows()
-
-	local total = #state.cached_entries
-	if total == 0 then
+-- Render the first PAGE_SIZE entries; if there are more, a trailing row opens
+-- the full `brew outdated` listing in a terminal instead of trying to scroll
+-- (sketchybar popup items don't scroll reliably).
+local function render_entries(entries)
+	if #entries == 0 then
 		local clean = TOOL_PREFIX .. ".row.clean"
 		sbar.add("item", clean, {
 			position = "popup." .. bracket.name,
@@ -166,17 +149,15 @@ local function render_entry_page()
 			label = { string = "Everything up to date", align = "center", color = colors.grey },
 			width = 320,
 		})
-		table.insert(state.entry_rows, clean)
+		track(clean)
 		return
 	end
 
-	local from = state.scroll_offset + 1
-	local to = math.min(total, state.scroll_offset + PAGE_SIZE)
-
-	for i = from, to do
-		local e = state.cached_entries[i]
+	local shown = math.min(#entries, PAGE_SIZE)
+	for i = 1, shown do
+		local e = entries[i]
 		local row_name = TOOL_PREFIX .. ".entry." .. i
-		local row = sbar.add("item", row_name, {
+		sbar.add("item", row_name, {
 			position = "popup." .. bracket.name,
 			icon = {
 				string = ICON_BOX,
@@ -194,39 +175,43 @@ local function render_entry_page()
 			},
 			width = 320,
 		})
-		row:subscribe("mouse.scrolled", on_scroll)
-		table.insert(state.entry_rows, row_name)
+		track(row_name)
 	end
 
-	local footer_name = TOOL_PREFIX .. ".row.footer"
-	local footer = sbar.add("item", footer_name, {
-		position = "popup." .. bracket.name,
-		icon = { drawing = false },
-		label = {
-			string = string.format("%d\226\128\147%d of %d%s", from, to, total, total > PAGE_SIZE and "  ·  scroll for more" or ""),
-			align = "center",
+	if #entries > PAGE_SIZE then
+		local more_name = TOOL_PREFIX .. ".row.more"
+		local more = sbar.add("item", more_name, {
+			position = "popup." .. bracket.name,
+			icon = { drawing = false },
+			label = {
+				string = "+ " .. (#entries - PAGE_SIZE) .. " more — click to see full list",
+				align = "center",
+				width = 320,
+				color = colors.grey,
+				font = { size = 11 },
+			},
 			width = 320,
-			color = colors.grey,
-			font = { size = 10 },
-		},
-		width = 320,
-	})
-	footer:subscribe("mouse.scrolled", on_scroll)
-	table.insert(state.entry_rows, footer_name)
-end
-
-on_scroll = function(env)
-	local delta = tonumber(env.INFO and env.INFO.delta) or 0
-	local max_offset = math.max(0, #state.cached_entries - PAGE_SIZE)
-	state.scroll_offset = math.max(0, math.min(max_offset, state.scroll_offset - delta))
-	render_entry_page()
+		})
+		more:subscribe("mouse.clicked", function()
+			run_in_terminal("brew outdated")
+			sbar.set(bracket.name, { popup = { drawing = "off" } })
+			clear_rows()
+		end)
+		track(more_name)
+	end
 end
 
 local function add_action_row(id, icon_char, label_text, color, cmd)
 	local row_name = TOOL_PREFIX .. ".action." .. id
 	local row = sbar.add("item", row_name, {
 		position = "popup." .. bracket.name,
-		icon = { string = icon_char, align = "left", width = 20, color = color, font = { family = NERD_FONT, size = 12 } },
+		icon = {
+			string = icon_char,
+			align = "left",
+			width = 20,
+			color = color,
+			font = { family = NERD_FONT, size = 12 },
+		},
 		label = { string = label_text, align = "left", width = 290, color = colors.white, font = { size = 12 } },
 		width = 320,
 		background = { color = colors.bg2, corner_radius = 4, height = 22 },
@@ -235,17 +220,14 @@ local function add_action_row(id, icon_char, label_text, color, cmd)
 		run_in_terminal(cmd)
 		sbar.set(bracket.name, { popup = { drawing = "off" } })
 		clear_rows()
-		clear_entry_rows()
 	end)
 	track(row_name)
 end
 
--- BUILD POPUP (full rebuild: header, dashboard actions, then first page of entries)
+-- BUILD POPUP: header, dashboard actions, then the first PAGE_SIZE entries
 local function refresh_popup()
 	do_scan(function(summary, entries)
 		clear_rows()
-		clear_entry_rows()
-		state.scroll_offset = 0
 
 		if not summary then
 			local err = TOOL_PREFIX .. ".row.err"
@@ -256,7 +238,6 @@ local function refresh_popup()
 				width = 320,
 			})
 			track(err)
-			state.cached_entries = {}
 			return
 		end
 
@@ -293,9 +274,8 @@ local function refresh_popup()
 			end
 			return a.name < b.name
 		end)
-		state.cached_entries = entries
 
-		render_entry_page()
+		render_entries(entries)
 	end)
 end
 
@@ -310,7 +290,6 @@ chip:subscribe("mouse.clicked", function(env)
 	if q and q.popup and q.popup.drawing == "on" then
 		sbar.set(bracket.name, { popup = { drawing = "off" } })
 		clear_rows()
-		clear_entry_rows()
 	else
 		sbar.set(bracket.name, { popup = { drawing = "on" } })
 		sbar.delay(0.1, refresh_popup)
