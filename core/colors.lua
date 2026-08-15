@@ -1,5 +1,5 @@
 -- Try wallpaper-generated theme first, fall back to Tokyo Night
-local ok, generated = pcall(require, "colors_generated")
+local ok, generated = pcall(require, "core.colors_generated")
 if ok and generated then
 	return generated
 end
