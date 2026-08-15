@@ -11,9 +11,13 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CONFIG_DIR="$(dirname "$SCRIPT_DIR")"
 EXTRACT_PY="$SCRIPT_DIR/extract_colors.py"
 GENERATE_PY="$SCRIPT_DIR/generate_lua.py"
+GENERATE_ENV_PY="$SCRIPT_DIR/generate_env.py"
 GENERATE_ITERM_PY="$SCRIPT_DIR/generate_iterm.py"
+GENERATE_DOWNSTREAM_PY="$SCRIPT_DIR/generate_downstream.py"
 OUTPUT="$CONFIG_DIR/colors_generated.lua"
+ENV_OUTPUT="$CONFIG_DIR/colors_generated.sh"
 ITERM_OUTPUT="$HOME/Library/Application Support/iTerm2/DynamicProfiles/wallpaper.json"
+DOTFILES_ROOT="$(dirname "$CONFIG_DIR")"
 CACHE_DIR="$SCRIPT_DIR/.cache"
 PYTHON="${PYTHON:-python3}"
 
@@ -138,6 +142,20 @@ extract_with_cache "$WP3" > "$CACHE_DIR/current_d3.json"
     "$CACHE_DIR/current_d3.json" \
     "$OUTPUT"
 
+"$PYTHON" "$GENERATE_ENV_PY" \
+    "$CACHE_DIR/current_d1.json" \
+    "$CACHE_DIR/current_d2.json" \
+    "$CACHE_DIR/current_d3.json" \
+    "$ENV_OUTPUT"
+
 "$PYTHON" "$GENERATE_ITERM_PY" \
     "$CACHE_DIR/current_d1.json" \
     "$ITERM_OUTPUT"
+
+# Downstream generators consume colors via the SKETCHYBAR_COLOR_* exports
+# above, the same contract shell rc / tmux.conf use — not the raw JSON.
+set -a
+# shellcheck source=/dev/null
+source "$ENV_OUTPUT"
+set +a
+"$PYTHON" "$GENERATE_DOWNSTREAM_PY" "$DOTFILES_ROOT"

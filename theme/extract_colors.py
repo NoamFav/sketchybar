@@ -191,7 +191,18 @@ def build_palette(image_path):
         if hits:
             used.add(hits[0])
             assigned[name] = lift_accent(*raw[hits[0]], bg_lum, min_cr=2.5)
+            continue
+
+        # Nothing in the photo falls in this hue's window — prefer the
+        # nearest *real* unused cluster over fabricating a color from
+        # scratch, even if its hue is a loose fit for the role name.
+        remaining = [i for i in candidates if i not in used]
+        if remaining:
+            nearest = min(remaining, key=lambda i: hue_dist(hsv_all[i][0], center))
+            used.add(nearest)
+            assigned[name] = lift_accent(*raw[nearest], bg_lum, min_cr=2.5)
         else:
+            # Truly nothing left to draw from (e.g. a near-grayscale image).
             assigned[name] = synth_hue(center, base_sat, base_val, bg_lum)
 
     # Dominant accent = most vibrant cluster (bright + saturated = "hero" color)
