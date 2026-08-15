@@ -1,5 +1,5 @@
-local settings = require("settings")
-local colors = require("colors")
+local settings = require("core.settings")
+local colors = require("core.colors")
 
 sbar.add("item", { position = "right", width = settings.group_paddings })
 

@@ -4,8 +4,8 @@
 -- Creates workspace indicators that show on their respective monitors,
 -- display app icons for windows in each workspace, and handle click interactions
 
-local colors = require("colors")
-local settings = require("settings")
+local colors = require("core.colors")
+local settings = require("core.settings")
 local app_icons = require("helpers.app_icons")
 
 -- Register the custom event that AeroSpace will emit

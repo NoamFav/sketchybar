@@ -226,20 +226,22 @@ If not using the included Aerospace config, you'll need to modify the `WORKSPACE
 ```
 ~/.config/sketchybar/
 ├── 📄 sketchybarrc           # Main configuration entry point
-├── 📄 colors.lua             # Tokyo Night color scheme
-├── 📄 settings.lua           # Global settings and styling
+├── 📁 core/                  # Bar setup, defaults, colors, settings, icons
+│   ├── 📄 init.lua           # Loads bar/default/items into one config message
+│   ├── 📄 bar.lua            # Bar shape/appearance
+│   ├── 📄 default.lua        # Default item styling
+│   ├── 📄 colors.lua         # Tokyo Night color scheme (falls back from colors_generated)
+│   ├── 📄 colors_generated.lua/.sh  # Wallpaper-derived palette (regenerated, gitignored)
+│   ├── 📄 settings.lua       # Global settings and styling
+│   └── 📄 icons.lua          # Icon glyph tables
 ├── 📁 items/                 # Individual widget configurations
 │   ├── 📄 aerospace_workspaces.lua  # Multi-monitor workspace indicators
-│   ├── 📄 wifi.lua          # WiFi status widget
-│   ├── 📄 battery.lua       # Battery indicator
-│   ├── 📄 cpu.lua           # CPU usage monitor
-│   ├── 📄 media.lua         # Now playing widget
-│   ├── 📄 weather.lua       # Weather information
-│   └── 📄 ...               # Other widgets
-├── 📁 helpers/              # Utility functions
-│   ├── 📄 app_icons.lua     # App name to icon mappings
-│   └── 📄 ...               # Other helper functions
-└── 📁 scripts/              # External shell scripts
+│   ├── 📄 media.lua          # Now playing widget
+│   └── 📁 widgets/           # wifi, battery, cpu, weather, volume, brew, music, git_toolkit
+├── 📁 helpers/               # Utility functions and native event providers
+│   ├── 📄 app_icons.lua      # App name to icon mappings
+│   └── 📄 ...                # Other helper functions
+└── 📁 theme/                 # Wallpaper-adaptive theme generator (theme/generate.sh)
 ```
 
 ## 🔍 Verification & Troubleshooting
@@ -288,8 +290,8 @@ fc-cache -f
 
 | Customization        | Location              | Description                                  |
 | -------------------- | --------------------- | -------------------------------------------- |
-| **Colors**           | `colors.lua`          | Tokyo Night theme modifications              |
-| **Fonts**            | `settings.lua`        | Font families and sizes                      |
+| **Colors**           | `core/colors.lua`     | Tokyo Night theme modifications              |
+| **Fonts**            | `core/settings.lua`   | Font families and sizes                      |
 | **Widget Position**  | Individual item files | Left, center, or right positioning           |
 | **Update Frequency** | Widget files          | Refresh intervals for dynamic content        |
 | **New Widgets**      | `items/` directory    | Create new files following existing patterns |

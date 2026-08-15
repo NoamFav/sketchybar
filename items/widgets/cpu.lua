@@ -1,6 +1,6 @@
-local icons = require("icons")
-local colors = require("colors")
-local settings = require("settings")
+local icons = require("core.icons")
+local colors = require("core.colors")
+local settings = require("core.settings")
 
 -- Execute the event provider binary which provides the event "cpu_update" for
 -- the cpu load data, which is fired every 2.0 seconds.

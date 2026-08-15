@@ -1,5 +1,5 @@
-local icons = require("icons")
-local colors = require("colors")
+local icons = require("core.icons")
+local colors = require("core.colors")
 
 local whitelist = { ["Spotify"] = true,
                     ["Music"] = true    };

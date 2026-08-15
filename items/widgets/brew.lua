@@ -1,5 +1,5 @@
-local colors = require("colors")
-local settings = require("settings")
+local colors = require("core.colors")
+local settings = require("core.settings")
 
 local TOOL_PREFIX = "widgets.brew"
 local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/brew_toolkit/brew_scan.sh"

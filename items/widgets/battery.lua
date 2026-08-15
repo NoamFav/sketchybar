@@ -1,6 +1,6 @@
-local icons = require("icons")
-local colors = require("colors")
-local settings = require("settings")
+local icons = require("core.icons")
+local colors = require("core.colors")
+local settings = require("core.settings")
 
 local battery = sbar.add("item", "widgets.battery", {
   position = "right",

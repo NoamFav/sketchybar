@@ -1,5 +1,5 @@
-local colors = require("colors")
-local settings = require("settings")
+local colors = require("core.colors")
+local settings = require("core.settings")
 
 local TOOL_PREFIX = "widgets.git"
 local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/iskra_scan.sh"
