@@ -135,9 +135,9 @@ The installer handles everything automatically. After completion, your status ba
 
 ## ⚙️ Required Customization
 
-> **⚠️ Early Stage Notice:**  
-> This configuration is still under active development.  
-> Some widgets and integrations are unfinished, experimental, or tailored to my setup.  
+> **⚠️ Early Stage Notice:**
+> This configuration is still under active development.
+> Some widgets and integrations are unfinished, experimental, or tailored to my setup.
 > Expect changes, and feel free to tweak for your own workflow.
 > The git integrations is still under development and far from finished (and working for that matter)
 
@@ -387,7 +387,7 @@ _Without Felix's groundbreaking work, none of this would exist._
 - Workspace indicators may flicker during rapid workspace switching
 - Font installation can be inconsistent on some macOS versions
 - Media widget limited to Apple Music (osascript dependency)
-- Weather widget hardcoded to Maastricht location
+- Weather widget hardcoded to Paris location
 - WiFi widget requires manual interface configuration
 
 </details>

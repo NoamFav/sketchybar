@@ -64,7 +64,7 @@ local h6 = add_row("widgets.weather.row.h6", "Next 6h", "—")
 
 -- === CHIP REFRESH (icon + temp)
 local function refresh_chip()
-	sbar.exec([[curl -s 'https://wttr.in/Maastricht?format=%t+%C' | tr -d '\n']], function(out)
+	sbar.exec([[curl -s 'https://wttr.in/Paris?format=%t+%C' | tr -d '\n']], function(out)
 		if not out or out == "" then
 			return
 		end
@@ -93,7 +93,7 @@ end
 
 -- === POPUP REFRESH (details) — harden PATH for jq when launched by services
 local function refresh_popup()
-	local url = "https://wttr.in/Maastricht?format=j1"
+	local url = "https://wttr.in/Paris?format=j1"
 	local cmd = [[/bin/bash -lc '
     export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin"
     curl -fsSL "]] .. url .. [[" | jq -r "
