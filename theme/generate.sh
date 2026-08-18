@@ -23,10 +23,25 @@ PYTHON="${PYTHON:-python3}"
 
 BACKDROP_THUMBS="$HOME/Library/Application Support/Backdrop/Library/Thumbnails"
 AERIAL_THUMBS="$HOME/Library/Application Support/com.apple.wallpaper/aerials/thumbnails"
+WALLPAPER_INDEX="$HOME/Library/Application Support/com.apple.wallpaper/Store/Index.plist"
 
 mkdir -p "$CACHE_DIR"
 
 # ── Wallpaper source resolution ────────────────────────────────────────────────
+
+# macOS writes WALLPAPER_INDEX promptly on switch, but Backdrop flushes its own
+# prefs (read below) lazily — if we just switched, give it a moment to catch up
+# so we don't read the previous wallpaper's UUID. No-op if nothing changed recently.
+wait_for_backdrop_sync() {
+    [[ -f "$WALLPAPER_INDEX" ]] || return 0
+    local mtime now age settle=3
+    mtime=$(stat -f %m "$WALLPAPER_INDEX" 2>/dev/null) || return 0
+    now=$(date +%s)
+    age=$(( now - mtime ))
+    if (( age < settle )); then
+        sleep $(( settle - age ))
+    fi
+}
 
 get_backdrop_uuid() {
     defaults read com.cindori.Backdrop librarySelectedItemIdsBySection 2>/dev/null \
@@ -121,6 +136,7 @@ if [[ -n "$MANUAL_IMAGE" ]]; then
     WP1="$MANUAL_IMAGE"; WP2="$MANUAL_IMAGE"; WP3="$MANUAL_IMAGE"
     echo "Using manual image: $MANUAL_IMAGE" >&2
 else
+    wait_for_backdrop_sync
     WP1=$(get_wallpaper 1)
     WP2=$(get_wallpaper 2)
     WP3=$(get_wallpaper 3)
