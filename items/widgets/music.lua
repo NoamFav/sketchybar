@@ -1,9 +1,8 @@
--- ~/.config/sketchybar/items/widgets/music.lua
 local colors = require("core.colors")
 local icons = require("core.icons")
 local settings = require("core.settings")
 
--- --- tuning ---------------------------------------------------------------
+-- ── Tuning ───────────────────────────────────────────────────────────────────
 local COVER_SIZE = 26
 local COVER_SCALE = 0.04
 local COVER_RADIUS = 5
@@ -18,7 +17,7 @@ end
 -- temp artwork file (writable even when started by launchd)
 local ART_PATH = "/tmp/sketchybar_music_art.jpg"
 
--- --- items ---------------------------------------------------------------
+-- ── Items ────────────────────────────────────────────────────────────────────
 -- Cover first so text aligns right after it
 local cover = sbar.add("item", "widgets.music.cover", {
 	position = side(),
@@ -102,7 +101,7 @@ sbar.add("item", "widgets.music.padding", {
 	width = settings.group_paddings,
 })
 
--- --- actions --------------------------------------------------------------
+-- ── Actions ──────────────────────────────────────────────────────────────────
 btn_prev:subscribe("mouse.clicked", function()
 	sbar.exec([[/usr/bin/osascript -e 'tell application "Music" to previous track']])
 end)
@@ -119,7 +118,7 @@ for _, it in ipairs({ cover, title, artist }) do
 	end)
 end
 
--- --- AppleScript helpers (resilient) -------------------------------------
+-- ── AppleScript helpers (resilient) ──────────────────────────────────────────
 -- Return title, artist, player_state even if stopped/not running.
 local APPLESCRIPT_INFO = [[
 if application "Music" is running then
@@ -169,7 +168,7 @@ end if
 return ""
 ]]):format(ART_PATH)
 
--- --- rendering ------------------------------------------------------------
+-- ── Rendering ────────────────────────────────────────────────────────────────
 local function ensure_visible()
 	-- only turn items on; do NOT touch labels
 	cover:set({ drawing = "on" })

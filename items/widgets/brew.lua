@@ -17,7 +17,7 @@ local ICON_DOCTOR = " "
 
 local PAGE_SIZE = 10
 
--- CHIP
+-- Chip
 local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	position = "right",
 	icon = { string = ICON_BEER, font = { family = NERD_FONT, size = 16 } },
@@ -27,7 +27,7 @@ local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	update_freq = 10800, -- 3h; brew outdated is relatively expensive, no need for tighter polling
 })
 
--- BRACKET with popup
+-- Bracket, with popup
 local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 	background = { color = colors.bg1 },
 	popup = {
@@ -37,14 +37,14 @@ local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 	},
 })
 
--- STATE
+-- State
 local state = {
 	rows = {}, -- header / action buttons / separator / entries (torn down on every full refresh)
 	rows_index = {},
 	scan_in_flight = false,
 }
 
--- UTILS
+-- Utils
 local function split_lines(s)
 	local t = {}
 	for line in string.gmatch(s or "", "[^\r\n]+") do
@@ -95,7 +95,7 @@ local function run_in_terminal(cmd)
 	sbar.exec("open -na /Applications/Ghostty.app --args -e " .. cmd)
 end
 
--- SCAN
+-- Scan
 local function do_scan(on_done)
 	if state.scan_in_flight then
 		return
@@ -121,7 +121,7 @@ local function do_scan(on_done)
 	end)
 end
 
--- UPDATE CHIP
+-- Update chip
 local function refresh_chip()
 	do_scan(function(summary)
 		if not summary then
@@ -224,7 +224,7 @@ local function add_action_row(id, icon_char, label_text, color, cmd)
 	track(row_name)
 end
 
--- BUILD POPUP: header, dashboard actions, then the first PAGE_SIZE entries
+-- Build popup: header, dashboard actions, then the first PAGE_SIZE entries
 local function refresh_popup()
 	do_scan(function(summary, entries)
 		clear_rows()
@@ -279,7 +279,7 @@ local function refresh_popup()
 	end)
 end
 
--- CLICK
+-- Click
 chip:subscribe("mouse.clicked", function(env)
 	if env.BUTTON == "right" then
 		run_in_terminal("brew upgrade")
@@ -296,11 +296,9 @@ chip:subscribe("mouse.clicked", function(env)
 	end
 end)
 
--- PERIODIC
+-- Periodic
 chip:subscribe({ "routine", "system_woke" }, refresh_chip)
 
--- Spacing after widget
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
--- Initial paint
 refresh_chip()

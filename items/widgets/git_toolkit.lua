@@ -5,7 +5,7 @@ local TOOL_PREFIX = "widgets.git"
 local SCAN_SCRIPT = os.getenv("HOME") .. "/.config/sketchybar/helpers/git_toolkit/iskra_scan.sh"
 local SCAN_CMD = '/bin/bash -l "' .. SCAN_SCRIPT .. '"'
 
--- CHIP
+-- Chip
 local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	position = "right",
 	icon = { string = "󰊤 ", font = { size = 14 } },
@@ -15,7 +15,7 @@ local chip = sbar.add("item", TOOL_PREFIX .. ".chip", {
 	update_freq = 180,
 })
 
--- BRACKET with popup
+-- Bracket, with popup
 local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 	background = { color = colors.bg1 },
 	popup = {
@@ -25,7 +25,7 @@ local bracket = sbar.add("bracket", TOOL_PREFIX .. ".bracket", { chip.name }, {
 	},
 })
 
--- STATE
+-- State
 local state = {
 	rows = {},
 	rows_index = {},
@@ -34,7 +34,7 @@ local state = {
 	records = nil, -- cached last scan results
 }
 
--- UTILS
+-- Utils
 local function split_lines(s)
 	local t = {}
 	for line in string.gmatch(s or "", "[^\r\n]+") do
@@ -104,7 +104,7 @@ end tell]]):format(escape_quotes(path))
 	sbar.exec('/usr/bin/osascript -e "' .. escape_quotes(osa) .. '"')
 end
 
--- POPUP ROW
+-- Popup row
 local function add_repo_row(r)
 	local key = r.name
 	local row_name = ("%s.row.%s"):format(TOOL_PREFIX, key)
@@ -148,7 +148,7 @@ local function add_repo_row(r)
 	return row
 end
 
--- SCAN
+-- Scan
 local function do_scan(on_done)
 	if state.scan_in_flight then return end
 	state.scan_in_flight = true
@@ -168,7 +168,7 @@ local function do_scan(on_done)
 	end)
 end
 
--- UPDATE CHIP
+-- Update chip
 local function refresh_chip()
 	do_scan(function(records)
 		local total = #records
@@ -186,7 +186,7 @@ local function refresh_chip()
 	end)
 end
 
--- BUILD POPUP
+-- Build popup
 local function refresh_popup()
 	do_scan(function(records)
 		clear_rows()
@@ -222,7 +222,7 @@ local function refresh_popup()
 	end)
 end
 
--- CLICK
+-- Click
 chip:subscribe("mouse.clicked", function(env)
 	if env.BUTTON ~= "left" then return end
 
@@ -236,11 +236,9 @@ chip:subscribe("mouse.clicked", function(env)
 	end
 end)
 
--- PERIODIC
+-- Periodic
 chip:subscribe({ "routine", "system_woke" }, refresh_chip)
 
--- Spacing
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
--- Initial
 refresh_chip()

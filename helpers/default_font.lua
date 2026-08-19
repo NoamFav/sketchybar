@@ -1,8 +1,8 @@
 return {
-  text = "SF Pro", -- Used for text
-  numbers = "SF Mono", -- Used for numbers
+  text = "SF Pro",
+  numbers = "SF Mono",
 
-  -- Unified font style map
+  -- unified style map so callers don't care which family they're styling
   style_map = {
     ["Regular"] = "Regular",
     ["Semibold"] = "Semibold",

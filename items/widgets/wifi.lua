@@ -2,8 +2,7 @@ local icons = require("core.icons")
 local colors = require("core.colors")
 local settings = require("core.settings")
 
--- Execute the event provider binary which provides the event "network_update"
--- for the network interface "en0", which is fired every 2.0 seconds.
+-- kills any stale instance first, then starts the provider that fires "network_update" every 2s for en8
 sbar.exec(
 	"killall network_load >/dev/null; $CONFIG_DIR/helpers/event_providers/network_load/bin/network_load en8 network_update 2.0"
 )
@@ -62,7 +61,6 @@ local wifi = sbar.add("item", "widgets.wifi.padding", {
 	label = { drawing = false },
 })
 
--- Background around the item
 local wifi_bracket = sbar.add("bracket", "widgets.wifi.bracket", {
 	wifi.name,
 	wifi_up.name,

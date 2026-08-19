@@ -2,7 +2,7 @@
 local colors = require("core.colors")
 local settings = require("core.settings")
 
--- === Compact chip (icon + temp) ===
+-- ── Compact chip (icon + temp) ───────────────────────────────────────────────
 local weather = sbar.add("item", "widgets.weather", {
 	position = "right",
 	icon = { string = "􀇃" }, -- default cloud.sun
@@ -12,7 +12,7 @@ local weather = sbar.add("item", "widgets.weather", {
 	update_freq = 600, -- 10 min
 })
 
--- === Popup bracket container ===
+-- ── Popup bracket container ──────────────────────────────────────────────────
 local weather_bracket = sbar.add("bracket", "widgets.weather.bracket", { weather.name }, {
 	background = { color = colors.bg1 },
 	popup = { align = "center" },
@@ -62,7 +62,7 @@ local h1 = add_row("widgets.weather.row.h1", "Next 1h", "—")
 local h3 = add_row("widgets.weather.row.h3", "Next 3h", "—")
 local h6 = add_row("widgets.weather.row.h6", "Next 6h", "—")
 
--- === CHIP REFRESH (icon + temp)
+-- ── Chip refresh (icon + temp) ───────────────────────────────────────────────
 local function refresh_chip()
 	sbar.exec([[curl -s 'https://wttr.in/Paris?format=%t+%C' | tr -d '\n']], function(out)
 		if not out or out == "" then
@@ -91,7 +91,7 @@ local function refresh_chip()
 	end)
 end
 
--- === POPUP REFRESH (details) — harden PATH for jq when launched by services
+-- ── Popup refresh (details) — harden PATH for jq when launched by services ───
 local function refresh_popup()
 	local url = "https://wttr.in/Paris?format=j1"
 	local cmd = [[/bin/bash -lc '
@@ -140,7 +140,7 @@ local function refresh_popup()
 	end)
 end
 
--- === Click behavior ===
+-- ── Click behavior ───────────────────────────────────────────────────────────
 weather:subscribe("mouse.clicked", function(env)
 	if env.BUTTON == "right" then
 		sbar.exec([[open -a "Weather"]]) -- right click opens app
@@ -154,14 +154,12 @@ weather:subscribe("mouse.clicked", function(env)
 	end
 end)
 
--- === Periodic updates ===
+-- ── Periodic updates ─────────────────────────────────────────────────────────
 weather:subscribe({ "routine", "system_woke" }, function()
 	refresh_chip()
 	sbar.delay(300, refresh_popup) -- soft refresh even if popup closed
 end)
 
--- Spacing after widget
 sbar.add("item", { position = "right", width = settings.group_paddings })
 
--- Initial paint
 refresh_chip()

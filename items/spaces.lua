@@ -36,7 +36,7 @@ for i = 1, 10, 1 do
 
   spaces[i] = space
 
-  -- Single item bracket for space items to achieve double border on highlight
+  -- wraps the space item so highlight can draw a second border around it
   local space_bracket = sbar.add("bracket", { space.name }, {
     background = {
       color = colors.transparent,
@@ -46,7 +46,6 @@ for i = 1, 10, 1 do
     }
   })
 
-  -- Padding space
   sbar.add("space", "space.padding." .. i, {
     space = i,
     script = "",

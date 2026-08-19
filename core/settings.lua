@@ -2,8 +2,7 @@ return {
   paddings = 3,
   group_paddings = 5,
 
-  -- Wallpaper-adaptive theming.
-  -- Run `sb sync-theme` to generate once, or `sb theme-watch start` to auto-update.
+  -- wallpaper-adaptive theming: `sb sync-theme` generates once, `sb theme-watch start` auto-updates
   auto_theme = true,
 
   icons = "sf-symbols", -- alternatively available: NerdFont

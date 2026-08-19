@@ -2,8 +2,7 @@ local icons = require("core.icons")
 local colors = require("core.colors")
 local settings = require("core.settings")
 
--- Execute the event provider binary which provides the event "cpu_update" for
--- the cpu load data, which is fired every 2.0 seconds.
+-- kills any stale instance first, then starts the provider that fires "cpu_update" every 2s
 sbar.exec("killall cpu_load >/dev/null; $CONFIG_DIR/helpers/event_providers/cpu_load/bin/cpu_load cpu_update 2.0")
 
 local cpu = sbar.add("graph", "widgets.cpu" , 42, {
@@ -57,12 +56,10 @@ cpu:subscribe("mouse.clicked", function(env)
   sbar.exec("open -a 'Activity Monitor'")
 end)
 
--- Background around the cpu item
 sbar.add("bracket", "widgets.cpu.bracket", { cpu.name }, {
   background = { color = colors.bg1 }
 })
 
--- Background around the cpu item
 sbar.add("item", "widgets.cpu.padding", {
   position = "right",
   width = settings.group_paddings
