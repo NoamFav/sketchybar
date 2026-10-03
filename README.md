@@ -1,24 +1,32 @@
 <div align="center">
-
-# 🎨 SketchyBar Configuration
-
-**A Tokyo Night-inspired SketchyBar setup for macOS with Aerospace integration**
-
-[![macOS](https://img.shields.io/badge/macOS-12%2B-000000?style=for-the-badge&logo=apple)](https://www.apple.com/macos/)
-[![SketchyBar](https://img.shields.io/badge/SketchyBar-Latest-4285F4?style=for-the-badge)](https://github.com/FelixKratz/SketchyBar)
-[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg?style=for-the-badge)](https://www.gnu.org/licenses/gpl-3.0)
-
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/banner-night.svg">
+  <img alt="sketchybar: Tokyo Night-themed SketchyBar configuration for macOS with AeroSpace window manager integration." src=".github/brand/banner-paper.svg" width="100%">
+</picture>
+<br><br>
+<a href="#overview"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-overview-night.svg"><img alt="overview" src=".github/brand/tab-overview-paper.svg"></picture></a>
+<a href="#what-the-installer-does"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-what-the-installer-does-night.svg"><img alt="what the installer does" src=".github/brand/tab-what-the-installer-does-paper.svg"></picture></a>
+<a href="#installation"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-installation-night.svg"><img alt="installation" src=".github/brand/tab-installation-paper.svg"></picture></a>
+<a href="#required-customization"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-required-customization-night.svg"><img alt="required customization" src=".github/brand/tab-required-customization-paper.svg"></picture></a>
+<a href="#configuration-structure"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-configuration-structure-night.svg"><img alt="configuration structure" src=".github/brand/tab-configuration-structure-paper.svg"></picture></a>
+<a href="#verification-troubleshooting"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-verification-troubleshooting-night.svg"><img alt="verification & troubleshooting" src=".github/brand/tab-verification-troubleshooting-paper.svg"></picture></a>
+<a href="#customization-tips"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-customization-tips-night.svg"><img alt="customization tips" src=".github/brand/tab-customization-tips-paper.svg"></picture></a>
+<a href="#credits-acknowledgments"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-credits-acknowledgments-night.svg"><img alt="credits & acknowledgments" src=".github/brand/tab-credits-acknowledgments-paper.svg"></picture></a>
+<a href="#roadmap"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-roadmap-night.svg"><img alt="roadmap" src=".github/brand/tab-roadmap-paper.svg"></picture></a>
+<a href="#license"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-license-night.svg"><img alt="license" src=".github/brand/tab-license-paper.svg"></picture></a>
+<a href="#contributing"><picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/tab-contributing-night.svg"><img alt="contributing" src=".github/brand/tab-contributing-paper.svg"></picture></a>
 </div>
 
----
-
-## 🔍 Overview
+<p>
+<a name="overview"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-overview-night.svg"><img alt="overview" src=".github/brand/section-overview-paper.svg" width="100%"></picture>
+</p>
 
 A personal **SketchyBar** configuration for **macOS**, designed to work seamlessly with **Aerospace** window manager. Built on Felix Kratz's excellent SbarLua framework, this configuration extends the original with Tokyo Night theming, custom widgets, and multi-monitor workspace integration.
 
 <div align="center">
 
-### ✨ Key Features
+### Key Features
 
 | Feature                          | Description                                               |
 | -------------------------------- | --------------------------------------------------------- |
@@ -31,18 +39,10 @@ A personal **SketchyBar** configuration for **macOS**, designed to work seamless
 
 </div>
 
-## 📋 Table of Contents
-
-- [What the Installer Does](#-what-the-installer-does)
-- [Installation](#-installation)
-- [Required Customization](#-required-customization)
-- [Configuration Structure](#-configuration-structure)
-- [Verification & Troubleshooting](#-verification--troubleshooting)
-- [Customization Tips](#-customization-tips)
-- [Credits](#-credits--acknowledgments)
-- [Roadmap](#-roadmap)
-
-## 🤖 What the Installer Does
+<p>
+<a name="what-the-installer-does"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-what-the-installer-does-night.svg"><img alt="what the installer does" src=".github/brand/section-what-the-installer-does-paper.svg" width="100%"></picture>
+</p>
 
 The provided `install.sh` script automates the complete setup process through 5 stages:
 
@@ -98,7 +98,10 @@ Restarts SketchyBar with the new configuration and validates installation
 
 </details>
 
-## 🔧 Installation
+<p>
+<a name="installation"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-installation-night.svg"><img alt="installation" src=".github/brand/section-installation-paper.svg" width="100%"></picture>
+</p>
 
 ### Prerequisites
 
@@ -133,7 +136,10 @@ The installer handles everything automatically. After completion, your status ba
 
 </details>
 
-## ⚙️ Required Customization
+<p>
+<a name="required-customization"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-required-customization-night.svg"><img alt="required customization" src=".github/brand/section-required-customization-paper.svg" width="100%"></picture>
+</p>
 
 > **⚠️ Early Stage Notice:**
 > This configuration is still under active development.
@@ -221,7 +227,10 @@ If not using the included Aerospace config, you'll need to modify the `WORKSPACE
 
 </details>
 
-## 📁 Configuration Structure
+<p>
+<a name="configuration-structure"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-configuration-structure-night.svg"><img alt="configuration structure" src=".github/brand/section-configuration-structure-paper.svg" width="100%"></picture>
+</p>
 
 ```
 ~/.config/sketchybar/
@@ -244,7 +253,10 @@ If not using the included Aerospace config, you'll need to modify the `WORKSPACE
 └── 📁 theme/                 # Wallpaper-adaptive theme generator (theme/generate.sh)
 ```
 
-## 🔍 Verification & Troubleshooting
+<p>
+<a name="verification-troubleshooting"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-verification-troubleshooting-night.svg"><img alt="verification & troubleshooting" src=".github/brand/section-verification-troubleshooting-paper.svg" width="100%"></picture>
+</p>
 
 ### App Font Test
 
@@ -284,7 +296,10 @@ fc-cache -f
 
 </details>
 
-## 🎨 Customization Tips
+<p>
+<a name="customization-tips"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-customization-tips-night.svg"><img alt="customization tips" src=".github/brand/section-customization-tips-paper.svg" width="100%"></picture>
+</p>
 
 <div align="center">
 
@@ -321,11 +336,14 @@ local custom_widget = sbar.add("item", "custom", {
 
 </details>
 
-## 🙏 Credits & Acknowledgments
+<p>
+<a name="credits-acknowledgments"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-credits-acknowledgments-night.svg"><img alt="credits & acknowledgments" src=".github/brand/section-credits-acknowledgments-paper.svg" width="100%"></picture>
+</p>
 
 <div align="center">
 
-### 🌟 Primary Credits
+### Primary Credits
 
 </div>
 
@@ -354,7 +372,10 @@ _Without Felix's groundbreaking work, none of this would exist._
 
 </details>
 
-## 🚀 Roadmap
+<p>
+<a name="roadmap"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-roadmap-night.svg"><img alt="roadmap" src=".github/brand/section-roadmap-paper.svg" width="100%"></picture>
+</p>
 
 <details open>
 <summary><b>🚧 Currently Working On</b></summary>
@@ -392,13 +413,19 @@ _Without Felix's groundbreaking work, none of this would exist._
 
 </details>
 
-## 📜 License
+<p>
+<a name="license"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-license-night.svg"><img alt="license" src=".github/brand/section-license-paper.svg" width="100%"></picture>
+</p>
 
 This project is licensed under the **GNU GPL v3** - see [LICENSE](LICENSE) file for details.
 
 This preserves the open-source nature of Felix's original work while allowing free use and modification.
 
-## 💡 Contributing
+<p>
+<a name="contributing"></a>
+<picture><source media="(prefers-color-scheme: dark)" srcset=".github/brand/section-contributing-night.svg"><img alt="contributing" src=".github/brand/section-contributing-paper.svg" width="100%"></picture>
+</p>
 
 Since this is a personal configuration, contributions are welcome for:
 
@@ -410,10 +437,17 @@ For major changes, please open an issue first to discuss your proposed modificat
 
 <div align="center">
 
----
-
 **Built with ❤️ on macOS using Felix's excellent SketchyBar and SbarLua**
 
 _Inspired by Tokyo Night • Powered by Aerospace • Enhanced for productivity_
 
 </div>
+
+<br>
+
+<a href="https://nf-software.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/brand/footer-night.svg">
+  <img alt="NF Software" src=".github/brand/footer-paper.svg" width="100%">
+</picture>
+</a>
