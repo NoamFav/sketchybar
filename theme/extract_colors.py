@@ -102,43 +102,80 @@ def _open_image(image_path):
             pass
 
 
+# A cluster below this share of sampled pixels is treated as quantization
+# noise (anti-aliasing blends, compression artifacts, stray specular pixels)
+# and is excluded from accent/text/background selection entirely.
+MIN_POP_FRAC = 0.003
+# Population share at which a cluster gets full credit in vibrance/saturation
+# scoring; below this its score is scaled down linearly. This stops a
+# barely-present fleck from outranking a color that actually covers the image.
+POP_FULL_CREDIT = 0.01
+# How far (in hue degrees) a hue-slot fallback may reach for a "nearest real
+# cluster" before giving up and synthesizing instead — keeps e.g. a blue
+# cluster from ever standing in for a missing "yellow" semantic slot.
+MAX_FALLBACK_HUE_DIST = 55
+
+
 def extract_dominant(image_path, n=16):
+    """Return [(r, g, b, population_fraction), ...] for the image's dominant clusters."""
     img = _open_image(image_path)
     img = img.resize((120, 120), Image.LANCZOS)
     q = img.quantize(colors=n, method=Image.Quantize.FASTOCTREE)
     p = q.getpalette()[:n * 3]
-    return [(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]) for i in range(n)]
+    total = img.size[0] * img.size[1]
+    pop = {idx: 0 for idx in range(n)}
+    for count, idx in q.getcolors(maxcolors=total):
+        pop[idx] = count
+    return [
+        (p[i * 3], p[i * 3 + 1], p[i * 3 + 2], pop[i] / total)
+        for i in range(n)
+    ]
+
+
+def pop_weight(frac):
+    """0..1 credit for a cluster's prominence, capped at POP_FULL_CREDIT."""
+    return min(1.0, frac / POP_FULL_CREDIT)
 
 
 def build_palette(image_path):
-    raw = extract_dominant(image_path, 16)
-    raw.sort(key=lambda c: luminance(*c))
+    dominant = extract_dominant(image_path, 16)
+    dominant.sort(key=lambda c: luminance(*c[:3]))
+    raw = [c[:3] for c in dominant]
+    pop = [c[3] for c in dominant]
     hsv_all = [to_hsv(*c) for c in raw]
 
     n = len(raw)
 
+    # Clusters with enough real presence in the image to be trusted as a
+    # background, text, or accent color — everything else is noise.
+    significant = [i for i in range(n) if pop[i] >= MIN_POP_FRAC]
+    if not significant:
+        significant = list(range(n))  # degenerate image: nothing passes, use it all
+
     # ── Backgrounds ────────────────────────────────────────────────────────────
-    bg = darken_to(*raw[0], target_lum=0.025)
+    bg_idx = min(significant, key=lambda i: luminance(*raw[i]))
+    bg = darken_to(*raw[bg_idx], target_lum=0.025)
     bg_lum = luminance(*bg)
     bg_h, bg_s, bg_v = to_hsv(*bg)
 
     # bg1/bg2: prefer neutral (low-saturation) dark clusters so warm image
     # reflections don't bleed into bracket/chip backgrounds.
     dark_neutral = sorted(
-        range(n),
+        significant,
         key=lambda i: (hsv_all[i][1], -luminance(*raw[i]))  # low-sat first, then darkest
     )
-    bg1_raw = darken_to(*raw[dark_neutral[min(1, n-1)]], target_lum=0.06)
+    bg1_raw = darken_to(*raw[dark_neutral[min(1, len(dark_neutral)-1)]], target_lum=0.06)
     bg1 = tuple(max(bg[i], bg1_raw[i]) for i in range(3))
 
-    bg2_raw = darken_to(*raw[dark_neutral[min(2, n-1)]], target_lum=0.10)
+    bg2_raw = darken_to(*raw[dark_neutral[min(2, len(dark_neutral)-1)]], target_lum=0.10)
     bg2 = tuple(max(bg1[i], bg2_raw[i]) for i in range(3))
 
     # ── Foreground (text) ───────────────────────────────────────────────────────
     # Prefer a neutral (low-saturation) bright cluster so text doesn't take the
-    # hue of a colored light (e.g. amber glow in a dark scene).
+    # hue of a colored light (e.g. amber glow in a dark scene). Population-
+    # filtered so a single stray near-white pixel can't become the text color.
     neutral_bright = [
-        i for i in range(n)
+        i for i in significant
         if luminance(*raw[i]) > 0.25 and hsv_all[i][1] < 0.25
     ]
     if neutral_bright:
@@ -156,17 +193,26 @@ def build_palette(image_path):
     grey = lift_accent(*grey, bg_lum, min_cr=2.0)
 
     # ── Accents (hue-based semantic assignment) ─────────────────────────────────
-    # Exclude clusters already claimed as neutral-bright (fg candidates) so
-    # saturated lights (amber, blue, etc.) land in accent slots, not text.
+    # A color only qualifies as an accent candidate if it's both visibly
+    # bright/saturated AND actually present in the image in meaningful
+    # quantity — the population floor is what keeps a 1-pixel compression
+    # artifact from ever winning a slot just because it's hyper-saturated.
     candidates = [
-        i for i, c in enumerate(raw)
-        if luminance(*c) > bg_lum * 1.5 and hsv_all[i][1] > 0.20
+        i for i in significant
+        if hsv_all[i][2] > 0.12 and hsv_all[i][1] > 0.20
     ]
-    # For hue slot matching: sort by saturation (find the most "pure" hue match)
-    by_sat = sorted(candidates, key=lambda i: hsv_all[i][1], reverse=True)
-    # For the dominant accent: sort by vibrance (sat × val) so we pick the
-    # brightest saturated color, not the darkest most-saturated one.
-    by_vibrance = sorted(candidates, key=lambda i: hsv_all[i][1] * hsv_all[i][2], reverse=True)
+    # For hue slot matching: rank by saturation weighted by how much of the
+    # image actually has this color, so the "purest" hue match is also a real
+    # one, not a vanishingly rare fleck that happens to be more saturated.
+    by_sat = sorted(candidates, key=lambda i: hsv_all[i][1] * pop_weight(pop[i]), reverse=True)
+    # For the dominant accent: rank by vibrance (sat × val), same population
+    # weighting, so we pick the brightest saturated color that's actually
+    # visible in the wallpaper — not the rarest, most-saturated speck.
+    by_vibrance = sorted(
+        candidates,
+        key=lambda i: hsv_all[i][1] * hsv_all[i][2] * pop_weight(pop[i]),
+        reverse=True
+    )
 
     base_sat = hsv_all[by_sat[0]][1] if by_sat else 0.65
     base_val = max(0.60, hsv_all[by_sat[0]][2] if by_sat else 0.70)
@@ -195,14 +241,22 @@ def build_palette(image_path):
 
         # Nothing in the photo falls in this hue's window — prefer the
         # nearest *real* unused cluster over fabricating a color from
-        # scratch, even if its hue is a loose fit for the role name.
+        # scratch, but only if it's still plausibly in the same color
+        # family. These names carry UI meaning (red=danger, yellow/orange=
+        # warning, green=ok — see cpu/battery/git widgets), so a cluster
+        # that's actually a different hue (e.g. blue standing in for
+        # "yellow") would be actively misleading, not just a loose fit.
         remaining = [i for i in candidates if i not in used]
-        if remaining:
-            nearest = min(remaining, key=lambda i: hue_dist(hsv_all[i][0], center))
+        nearest = min(remaining, key=lambda i: hue_dist(hsv_all[i][0], center)) if remaining else None
+        if nearest is not None and hue_dist(hsv_all[nearest][0], center) <= MAX_FALLBACK_HUE_DIST:
             used.add(nearest)
             assigned[name] = lift_accent(*raw[nearest], bg_lum, min_cr=2.5)
         else:
-            # Truly nothing left to draw from (e.g. a near-grayscale image).
+            # Nothing close enough in hue (e.g. a near-grayscale image, or
+            # one with no real yellow/green/etc.) — synthesize a color in
+            # the right hue family, scaled to the image's own saturation
+            # and brightness character so it still feels of a piece with
+            # the rest of the extracted palette.
             assigned[name] = synth_hue(center, base_sat, base_val, bg_lum)
 
     # Dominant accent = most vibrant cluster (bright + saturated = "hero" color)

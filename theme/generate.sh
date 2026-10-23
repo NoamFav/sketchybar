@@ -19,7 +19,24 @@ ENV_OUTPUT="$CONFIG_DIR/core/colors_generated.sh"
 ITERM_OUTPUT="$HOME/Library/Application Support/iTerm2/DynamicProfiles/wallpaper.json"
 DOTFILES_ROOT="$(dirname "$CONFIG_DIR")"
 CACHE_DIR="$SCRIPT_DIR/.cache"
-PYTHON="${PYTHON:-python3}"
+ERROR_LOG="$CACHE_DIR/extract_errors.log"
+
+# `python3` is a Homebrew-managed symlink that gets repointed to a new minor
+# version on every `brew upgrade python@3.x` — Pillow isn't carried over, so
+# that alone silently breaks extraction (every color falls back to the Tokyo
+# Night defaults with no visible error). Pick the first interpreter that
+# actually has Pillow importable instead of trusting the bare `python3` shim.
+pick_python() {
+    local candidates=() c
+    [[ -n "${PYTHON:-}" ]] && candidates+=("$PYTHON")
+    candidates+=(python3.14 python3.13 python3.15 python3.12 python3)
+    for c in "${candidates[@]}"; do
+        command -v "$c" >/dev/null 2>&1 || continue
+        "$c" -c "import PIL" >/dev/null 2>&1 && { echo "$c"; return; }
+    done
+    echo "python3"  # nothing has Pillow — fall through so the error is visible
+}
+PYTHON="$(pick_python)"
 
 BACKDROP_THUMBS="$HOME/Library/Application Support/Backdrop/Library/Thumbnails"
 AERIAL_THUMBS="$HOME/Library/Application Support/com.apple.wallpaper/aerials/thumbnails"
@@ -111,7 +128,9 @@ extract_with_cache() {
     hash=$(md5 -q "$path" 2>/dev/null || md5sum "$path" | awk '{print $1}')
     local cache="$CACHE_DIR/${hash}.json"
     if [[ ! -f "$cache" ]]; then
-        if ! "$PYTHON" "$EXTRACT_PY" "$path" > "$cache" 2>/dev/null; then
+        if ! "$PYTHON" "$EXTRACT_PY" "$path" > "$cache" 2>>"$ERROR_LOG"; then
+            echo "$(date '+%Y-%m-%d %H:%M:%S') extraction failed for $path (python: $PYTHON) — see above" >> "$ERROR_LOG"
+            echo "Color extraction failed for $(basename "$path") — falling back to defaults (see $ERROR_LOG)" >&2
             rm -f "$cache"
             echo "{}"
             return
