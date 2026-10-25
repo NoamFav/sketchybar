@@ -67,13 +67,6 @@ def lift_accent(r, g, b, bg_lum, min_cr=2.5):
             return nr, ng, nb
     return r, g, b
 
-def synth_hue(target_hue, base_sat, base_val, bg_lum):
-    """Generate a visible color at target_hue when the palette lacks one."""
-    s = max(0.55, base_sat)
-    v = max(0.60, base_val)
-    r, g, b = from_hsv(target_hue, s, v)
-    return lift_accent(r, g, b, bg_lum, min_cr=2.5)
-
 def sketchybar_hex(r, g, b, alpha=255):
     return f"0x{alpha:02x}{r:02x}{g:02x}{b:02x}"
 
@@ -110,10 +103,13 @@ MIN_POP_FRAC = 0.003
 # scoring; below this its score is scaled down linearly. This stops a
 # barely-present fleck from outranking a color that actually covers the image.
 POP_FULL_CREDIT = 0.01
-# How far (in hue degrees) a hue-slot fallback may reach for a "nearest real
-# cluster" before giving up and synthesizing instead — keeps e.g. a blue
-# cluster from ever standing in for a missing "yellow" semantic slot.
-MAX_FALLBACK_HUE_DIST = 55
+# A per-cluster floor just high enough to exclude 0-1 pixel quantization
+# flukes (at the 120x120 sample size, ~2 pixels). Real noise-rejection
+# happens at the hue-bucket TOTAL below — a smooth highlight (a lantern's
+# glow shading orange -> gold -> white) gets sliced by quantization into many
+# small same-hue slivers, each too small alone to pass MIN_POP_FRAC, but
+# together clearly a real, visible feature of the image.
+MIN_CLUSTER_FRAC = 2 / (120 * 120)
 
 
 def extract_dominant(image_path, n=16):
@@ -192,77 +188,68 @@ def build_palette(image_path):
     grey = from_hsv(fh, min(fs, 0.12), fv * 0.52)
     grey = lift_accent(*grey, bg_lum, min_cr=2.0)
 
-    # ── Accents (hue-based semantic assignment) ─────────────────────────────────
-    # A color only qualifies as an accent candidate if it's both visibly
-    # bright/saturated AND actually present in the image in meaningful
-    # quantity — the population floor is what keeps a 1-pixel compression
-    # artifact from ever winning a slot just because it's hyper-saturated.
-    candidates = [
-        i for i in significant
-        if hsv_all[i][2] > 0.12 and hsv_all[i][1] > 0.20
+    # ── Palette colors: only ever colors actually in the wallpaper ─────────────
+    # No target hues, no "find something red-ish" matching, no synthesizing
+    # anything the photo doesn't have. Classify each real color by which
+    # named hue it happens to sit closest to — the names are just labels for
+    # "the wallpaper's own warmest color", "its own greenest color", etc,
+    # never a target to search outward from. A wallpaper that's mostly
+    # orange/yellow with one note of blue ends up with several warm slots
+    # and exactly one (correctly minor) blue slot — not six evenly-spaced
+    # invented hues.
+    #
+    # A bucket is trusted once its members' COMBINED population clears
+    # MIN_POP_FRAC, not any single member alone — see MIN_CLUSTER_FRAC above
+    # for why: a gradient highlight quantizes into many small same-hue
+    # pieces that only add up to a real feature together.
+    colorful = [
+        i for i in range(n)
+        if pop[i] >= MIN_CLUSTER_FRAC and hsv_all[i][2] > 0.12 and hsv_all[i][1] > 0.20
     ]
-    # For hue slot matching: rank by saturation weighted by how much of the
-    # image actually has this color, so the "purest" hue match is also a real
-    # one, not a vanishingly rare fleck that happens to be more saturated.
-    by_sat = sorted(candidates, key=lambda i: hsv_all[i][1] * pop_weight(pop[i]), reverse=True)
-    # For the dominant accent: rank by vibrance (sat × val), same population
-    # weighting, so we pick the brightest saturated color that's actually
-    # visible in the wallpaper — not the rarest, most-saturated speck.
-    by_vibrance = sorted(
-        candidates,
-        key=lambda i: hsv_all[i][1] * hsv_all[i][2] * pop_weight(pop[i]),
-        reverse=True
-    )
+    prominence = lambda i: hsv_all[i][1] * hsv_all[i][2] * pop_weight(pop[i])
 
-    base_sat = hsv_all[by_sat[0]][1] if by_sat else 0.65
-    base_val = max(0.60, hsv_all[by_sat[0]][2] if by_sat else 0.70)
-
-    hue_slots = {
-        "red":     (0,   30),
-        "orange":  (25,  20),
-        "yellow":  (55,  22),
-        "green":   (120, 40),
-        "blue":    (220, 45),
-        "magenta": (295, 38),
+    hue_centers = {
+        "red": 0, "orange": 25, "yellow": 55,
+        "green": 120, "blue": 220, "magenta": 295,
     }
+    buckets = {name: [] for name in hue_centers}
+    for i in colorful:
+        nearest_name = min(hue_centers, key=lambda name: hue_dist(hsv_all[i][0], hue_centers[name]))
+        buckets[nearest_name].append(i)
+    # Within a bucket, the representative color is whichever member actually
+    # covers the most of the image, not whichever is brightest. `prominence`
+    # above is capped at 1% population, which lets a tiny blown-out
+    # highlight (a lantern's hottest point, under 1% of the pixels) outrank
+    # a color that fills a tenth of the frame just because it's more vivid —
+    # exactly backwards for "what IS the orange/red/etc. of this wallpaper."
+    representativeness = lambda i: pop[i] * hsv_all[i][1]
+    for name in buckets:
+        buckets[name].sort(key=representativeness, reverse=True)
+
+    # For the "reuse the wallpaper's overall dominant color" fallback below,
+    # stick to individually-significant clusters only — a bucket that's
+    # empty shouldn't get filled with some other hue's obscure gradient
+    # sliver, only its genuinely prominent color.
+    candidates = [i for i in colorful if pop[i] >= MIN_POP_FRAC]
+    by_vibrance = sorted(candidates, key=prominence, reverse=True)
 
     assigned = {}
-    used = set()
-
-    for name, (center, half_w) in hue_slots.items():
-        hits = [
-            i for i in by_sat
-            if hue_dist(hsv_all[i][0], center) <= half_w and i not in used
-        ]
-        if hits:
-            used.add(hits[0])
-            assigned[name] = lift_accent(*raw[hits[0]], bg_lum, min_cr=2.5)
-            continue
-
-        # Nothing in the photo falls in this hue's window — prefer the
-        # nearest *real* unused cluster over fabricating a color from
-        # scratch, but only if it's still plausibly in the same color
-        # family. These names carry UI meaning (red=danger, yellow/orange=
-        # warning, green=ok — see cpu/battery/git widgets), so a cluster
-        # that's actually a different hue (e.g. blue standing in for
-        # "yellow") would be actively misleading, not just a loose fit.
-        remaining = [i for i in candidates if i not in used]
-        nearest = min(remaining, key=lambda i: hue_dist(hsv_all[i][0], center)) if remaining else None
-        if nearest is not None and hue_dist(hsv_all[nearest][0], center) <= MAX_FALLBACK_HUE_DIST:
-            used.add(nearest)
-            assigned[name] = lift_accent(*raw[nearest], bg_lum, min_cr=2.5)
+    for name in hue_centers:
+        bucket_pop = sum(pop[i] for i in buckets[name])
+        if buckets[name] and bucket_pop >= MIN_POP_FRAC:
+            assigned[name] = lift_accent(*raw[buckets[name][0]], bg_lum, min_cr=2.5)
+        elif by_vibrance:
+            # Nothing in the wallpaper is actually closest to this hue —
+            # reuse its single most prominent real color overall instead of
+            # reaching for some other hue's cluster just to fill the slot.
+            assigned[name] = lift_accent(*raw[by_vibrance[0]], bg_lum, min_cr=2.5)
         else:
-            # Nothing close enough in hue (e.g. a near-grayscale image, or
-            # one with no real yellow/green/etc.) — synthesize a color in
-            # the right hue family, scaled to the image's own saturation
-            # and brightness character so it still feels of a piece with
-            # the rest of the extracted palette.
-            assigned[name] = synth_hue(center, base_sat, base_val, bg_lum)
+            assigned[name] = grey
 
-    # Dominant accent = most vibrant cluster (bright + saturated = "hero" color)
-    accent = assigned["blue"]
-    if by_vibrance:
-        accent = lift_accent(*raw[by_vibrance[0]], bg_lum, min_cr=2.5)
+    accent = (
+        lift_accent(*raw[by_vibrance[0]], bg_lum, min_cr=2.5)
+        if by_vibrance else grey
+    )
 
     return {
         "black":        sketchybar_hex(*bg),

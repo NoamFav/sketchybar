@@ -114,11 +114,21 @@ sb() {
     theme-watch)
         bash "$THEME_DIR/watch.sh" "${2:-status}"
         ;;
+    palette)
+        bash "$THEME_DIR/show_palette.sh"
+        ;;
     *)
-        echo "sb: usage: sb [toggle|start|stop|restart|reload|status|sync-theme|theme-watch start|stop|status]"
+        echo "sb: usage: sb [toggle|start|stop|restart|reload|status|sync-theme|theme-watch start|stop|status|palette]"
         return 1
         ;;
     esac
 }
 
-sb "$@"
+# Only auto-invoke when this file is executed directly (`sb.sh toggle`,
+# `./sb.sh restart`). When it's *sourced* — to load the `sb` function into
+# an interactive shell — `$@` is whatever the shell's own args happen to be
+# (usually none), which used to fall through to `cmd="toggle"` and silently
+# flip the bar's running state every time the shell config was reloaded.
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    sb "$@"
+fi
