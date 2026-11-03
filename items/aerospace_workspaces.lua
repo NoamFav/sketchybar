@@ -21,15 +21,13 @@ local WORKSPACE_LAYOUT = minimal
 		{ display = 3, workspaces = { "A", "S", "D", "F", "G", "Z", "X", "C", "V", "B" } },
 	}
 
--- per-display styling, uses wallpaper-derived accent/bg if colors_generated.lua exists
 local function make_style(display_num)
-	local dc = colors.display and colors.display[display_num]
 	return {
-		chip_bg = (dc and dc.bg1) or colors.bg1,
+		chip_bg = colors.bg1,
 		chip_border = colors.black,
 		chip_height = 26,
-		bracket_border = (dc and dc.bg2) or colors.bg2,
-		active_icon_highlight = (dc and dc.accent) or colors.blue,
+		bracket_border = colors.bg2,
+		active_icon_highlight = colors.blue,
 		active_label_highlight = colors.white,
 		inactive_icon_color = colors.white,
 		inactive_label_color = colors.grey,

@@ -239,8 +239,7 @@ If not using the included Aerospace config, you'll need to modify the `WORKSPACE
 │   ├── 📄 init.lua           # Loads bar/default/items into one config message
 │   ├── 📄 bar.lua            # Bar shape/appearance
 │   ├── 📄 default.lua        # Default item styling
-│   ├── 📄 colors.lua         # Tokyo Night color scheme (falls back from colors_generated)
-│   ├── 📄 colors_generated.lua/.sh  # Wallpaper-derived palette (regenerated, gitignored)
+│   ├── 📄 colors.lua         # Tokyo Night color scheme
 │   ├── 📄 settings.lua       # Global settings and styling
 │   └── 📄 icons.lua          # Icon glyph tables
 ├── 📁 items/                 # Individual widget configurations
@@ -250,7 +249,6 @@ If not using the included Aerospace config, you'll need to modify the `WORKSPACE
 ├── 📁 helpers/               # Utility functions and native event providers
 │   ├── 📄 app_icons.lua      # App name to icon mappings
 │   └── 📄 ...                # Other helper functions
-└── 📁 theme/                 # Wallpaper-adaptive theme generator (theme/generate.sh)
 ```
 
 <p>

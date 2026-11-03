@@ -1,10 +1,4 @@
--- Try wallpaper-generated theme first, fall back to Tokyo Night
-local ok, generated = pcall(require, "core.colors_generated")
-if ok and generated then
-	return generated
-end
-
--- Tokyo Night fallback
+-- Tokyo Night (night)
 return {
 	-- Core
 	black = 0xff1a1b26, -- TN night bg

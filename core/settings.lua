@@ -2,9 +2,6 @@ return {
   paddings = 3,
   group_paddings = 5,
 
-  -- wallpaper-adaptive theming: `sb sync-theme` generates once, `sb theme-watch start` auto-updates
-  auto_theme = true,
-
   icons = "sf-symbols", -- alternatively available: NerdFont
 
   -- This is a font configuration for SF Pro and SF Mono (installed manually)
